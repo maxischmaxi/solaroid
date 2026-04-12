@@ -25,6 +25,7 @@ export function Header({ onOpenStats, onOpenSettings }: HeaderProps) {
   const undo = useGameStore((s) => s.undo);
   const newGame = useGameStore((s) => s.newGame);
   const autoComplete = useGameStore((s) => s.autoComplete);
+  const requestHint = useGameStore((s) => s.requestHint);
   const drawMode = useGameStore((s) => s.settings.drawMode);
 
   // Local timer tick — does NOT write to the store, only re-renders this component.
@@ -52,6 +53,12 @@ export function Header({ onOpenStats, onOpenSettings }: HeaderProps) {
           className="rounded bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 disabled:bg-zinc-800 disabled:opacity-50 px-3 py-1.5 font-medium shadow"
         >
           Undo
+        </button>
+        <button
+          onClick={requestHint}
+          className="rounded bg-amber-600 hover:bg-amber-500 active:bg-amber-700 px-3 py-1.5 font-medium shadow"
+        >
+          Tipp
         </button>
         {canAutoComplete && (
           <button

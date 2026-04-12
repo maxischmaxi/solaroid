@@ -30,61 +30,6 @@ body {
   overscroll-behavior: none;
 }
 
-/* Board sizing system. All card-related dimensions derive from --card-w. */
-.board {
-  --card-w: clamp(44px, 9.5vw, 92px);
-  --card-h: calc(var(--card-w) * 1.4);
-  --fan-down: calc(var(--card-w) * 0.28);
-  --fan-down-tight: calc(var(--card-w) * 0.22);
-  --pile-gap: calc(var(--card-w) * 0.18);
-}
-
-@media (orientation: landscape) and (max-height: 560px) {
-  .board {
-    --card-w: clamp(40px, 11vh, 80px);
-  }
-}
-
-/* Standalone card slot used by stock/waste/foundation/empty tableau spots. */
-.card-slot {
-  position: relative;
-  width: var(--card-w);
-  height: var(--card-h);
-  border-radius: 6%;
-}
-
-.card-slot--empty {
-  border: 2px dashed rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.tableau-column {
-  position: relative;
-  width: var(--card-w);
-  /* Reserve space for ~13 fanned cards so the column doesn't collapse */
-  min-height: calc(var(--card-h) + 12 * var(--fan-down));
-}
-
-.tableau-card {
-  position: absolute;
-  left: 0;
-  width: var(--card-w);
-  height: var(--card-h);
-}
-
-/* Drag overlay stack matches tableau layout */
-.drag-stack {
-  position: relative;
-  width: var(--card-w);
-}
-
-.drag-stack > * {
-  position: absolute;
-  left: 0;
-  width: var(--card-w);
-  height: var(--card-h);
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -8,6 +8,7 @@ import {
   tryApplyMove,
 } from "@/lib/game/moves";
 import { pickNextAutoMove } from "@/lib/game/autoComplete";
+import { findHint, type Hint } from "@/lib/game/hints";
 import { canAutoComplete, isWon } from "@/lib/game/win";
 import { finalScore } from "@/lib/game/scoring";
 import {
@@ -30,6 +31,14 @@ import type {
   PileId,
 } from "@/lib/game/types";
 
+export interface ActiveHint {
+  hint: Hint;
+  /** Wall-clock millis when the hint was requested. */
+  startedAt: number;
+  /** Wall-clock millis after which the canvas hides the overlay. */
+  expiresAt: number;
+}
+
 interface GameStore {
   game: GameState;
   history: GameState[];
@@ -37,6 +46,21 @@ interface GameStore {
   stats: Stats;
   hydrated: boolean;
   autoCompleteRunning: boolean;
+  // Set when an auto-complete attempt bailed without winning (e.g. a draw-3
+  // cycle with no playable waste top). Prevents the GameShell effect from
+  // re-triggering the same failing run; cleared on any user-initiated move.
+  autoCompleteFailed: boolean;
+  // True while the canvas is playing the win-finale particle cascade. The
+  // CanvasBoard owns the simulation and clears the flag via finishWinFinale
+  // when the last particle leaves the screen.
+  winFinalePlaying: boolean;
+  // Active hint preview from the Tipp button. The CanvasBoard renders this
+  // as a pulsing ring + ghost-card animation and clears it via clearHint
+  // once `expiresAt` is reached.
+  hint: ActiveHint | null;
+  // Set when requestHint runs against a state with no possible move.
+  // Drives the GameOverModal in GameShell.
+  gameOverOpen: boolean;
 
   newGame: (opts?: { seed?: string; drawMode?: DrawMode }) => void;
   dispatchMove: (intent: MoveIntent) => boolean;
@@ -44,6 +68,10 @@ interface GameStore {
   recycleWaste: () => void;
   undo: () => void;
   autoComplete: () => Promise<void>;
+  finishWinFinale: () => void;
+  requestHint: () => void;
+  clearHint: () => void;
+  closeGameOver: () => void;
   updateSettings: (patch: Partial<Settings>) => void;
   resetStats: () => void;
   hydrate: () => void;
@@ -68,11 +96,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
   stats: defaultStats,
   hydrated: false,
   autoCompleteRunning: false,
+  autoCompleteFailed: false,
+  winFinalePlaying: false,
+  hint: null,
+  gameOverOpen: false,
 
   newGame: (opts) => {
     const drawMode = opts?.drawMode ?? get().settings.drawMode;
     const game = dealKlondike(opts?.seed, drawMode);
-    set({ game, history: [] });
+    set({
+      game,
+      history: [],
+      autoCompleteFailed: false,
+      winFinalePlaying: false,
+      hint: null,
+      gameOverOpen: false,
+    });
     saveCurrentGame(game, []);
     // Increment gamesPlayed lazily — we count a game as played the first time
     // a player completes or abandons it. For simplicity, we count on newGame.
@@ -90,7 +129,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!result.ok) return false;
     const next = result.state;
     const nextHistory = [...history, game];
-    set({ game: next, history: nextHistory });
+    // Any user move clears a previous auto-complete-failure flag — the player
+    // may have unblocked the position manually. Also dismiss any active hint
+    // overlay since the suggested move may no longer apply.
+    set({
+      game: next,
+      history: nextHistory,
+      autoCompleteFailed: false,
+      hint: null,
+    });
     saveCurrentGame(next, nextHistory);
 
     if (next.status === "won") {
@@ -112,7 +159,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (history.length === 0) return;
     const prev = history[history.length - 1];
     const newHistory = history.slice(0, -1);
-    set({ game: prev, history: newHistory });
+    set({
+      game: prev,
+      history: newHistory,
+      autoCompleteFailed: false,
+      hint: null,
+    });
     saveCurrentGame(prev, newHistory);
   },
 
@@ -127,32 +179,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     set({ history: [...history, game] });
 
+    const totalFoundationCards = (s: GameState): number =>
+      s.foundations.reduce((sum, f) => sum + f.cards.length, 0);
+
+    // Greedy stuck detector: if a complete stock cycle (next recycle) yielded
+    // no foundation progress, the same cycle would just repeat. Bail and
+    // surface the failure so the UI doesn't auto-retrigger forever.
+    let progressedSinceLastRecycle = true;
+    // The canvas scheduler runs the visible cascade animation; we just commit
+    // the moves with a small inter-step pause so each animation has time to
+    // play out before the next tween starts.
     while (!isWon(get().game)) {
       const intent = pickNextAutoMove(get().game);
       if (!intent) break;
-      // 80ms stagger between moves for the visual cascade.
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      if (intent.kind === "recycle" && !progressedSinceLastRecycle) break;
       const cur = get().game;
+      const before = totalFoundationCards(cur);
       const result = tryApplyMove(cur, intent);
       if (!result.ok) break;
-      // Note: do NOT push individual history entries during auto-complete.
-      const dispatch = () => set({ game: result.state });
-      if (
-        typeof document !== "undefined" &&
-        "startViewTransition" in document
-      ) {
-        const docWithVT = document as Document & {
-          startViewTransition?: (cb: () => void) => { finished: Promise<void> };
-        };
-        const transition = docWithVT.startViewTransition?.(dispatch);
-        if (transition) {
-          await transition.finished.catch(() => undefined);
-        } else {
-          dispatch();
-        }
-      } else {
-        dispatch();
+      set({ game: result.state });
+      const after = totalFoundationCards(result.state);
+      if (after > before) {
+        progressedSinceLastRecycle = true;
+      } else if (intent.kind === "recycle") {
+        progressedSinceLastRecycle = false;
       }
+      // Wait roughly one tween duration so the cascade reads as a sequence
+      // rather than a single instantaneous mutation.
+      await new Promise((resolve) => setTimeout(resolve, 90));
     }
 
     saveCurrentGame(get().game, get().history);
@@ -162,6 +216,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
         set({ game: { ...get().game, status: "won" } });
       }
       get()._recordWin();
+      set({ autoCompleteFailed: false });
+    } else {
+      // Loop bailed without a win — record so the GameShell effect doesn't
+      // immediately retry the same dead-end run.
+      set({ autoCompleteFailed: true });
     }
     set({ autoCompleteRunning: false });
   },
@@ -170,6 +229,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const next = { ...get().settings, ...patch };
     set({ settings: next });
     saveSettings(next);
+  },
+
+  finishWinFinale: () => {
+    if (get().winFinalePlaying) set({ winFinalePlaying: false });
+  },
+
+  requestHint: () => {
+    const found = findHint(get().game);
+    if (!found) {
+      // Truly stuck — no on-board move and stock+waste both empty.
+      set({ gameOverOpen: true, hint: null });
+      return;
+    }
+    const startedAt = Date.now();
+    set({
+      hint: { hint: found, startedAt, expiresAt: startedAt + 3000 },
+    });
+  },
+
+  clearHint: () => {
+    if (get().hint) set({ hint: null });
+  },
+
+  closeGameOver: () => {
+    if (get().gameOverOpen) set({ gameOverOpen: false });
   },
 
   resetStats: () => {
@@ -188,6 +272,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         settings,
         stats,
         hydrated: true,
+        autoCompleteFailed: false,
+        winFinalePlaying: false,
+        hint: null,
+        gameOverOpen: false,
       });
     } else {
       // No saved game → start a fresh one with the loaded drawMode.
@@ -198,12 +286,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         settings,
         stats,
         hydrated: true,
+        autoCompleteFailed: false,
+        winFinalePlaying: false,
+        hint: null,
+        gameOverOpen: false,
       });
     }
   },
 
   canUndo: () => get().history.length > 0,
-  canAutoComplete: () => canAutoComplete(get().game),
+  canAutoComplete: () =>
+    !get().autoCompleteFailed && canAutoComplete(get().game),
   findBestDestination: (from, cardId) =>
     findBestDestination(get().game, from, cardId),
   isLegalMove: (intent) => isLegalMove(get().game, intent),
@@ -228,7 +321,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentStreak: prev.currentStreak + 1,
       longestStreak: Math.max(prev.longestStreak, prev.currentStreak + 1),
     };
-    set({ stats });
+    // Trigger the canvas win finale. The CanvasBoard observer will short-
+    // circuit it if prefers-reduced-motion is enabled.
+    set({ stats, winFinalePlaying: true });
     saveStats(stats);
   },
 }));

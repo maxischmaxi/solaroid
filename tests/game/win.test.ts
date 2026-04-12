@@ -55,7 +55,7 @@ describe("allTableauFaceUp", () => {
 });
 
 describe("canAutoComplete", () => {
-  it("requires stock + waste empty AND all tableau face-up AND not yet won", () => {
+  it("is true as soon as no face-down tableau cards remain", () => {
     const base = dealKlondike("seed-1");
     const t = emptyTableau() as unknown as GameState["tableau"];
     const ready: GameState = {
@@ -67,13 +67,20 @@ describe("canAutoComplete", () => {
     expect(canAutoComplete(ready)).toBe(true);
   });
 
-  it("is false when waste is non-empty", () => {
+  it("is true even when stock and waste still have cards", () => {
+    // This is the moment of "inevitable victory" — every card is visible, so
+    // the auto-completer can drain stock/waste mechanically.
     const base = dealKlondike("seed-1");
     const t = emptyTableau() as unknown as GameState["tableau"];
-    const notReady: GameState = {
+    const ready: GameState = {
       ...base,
       tableau: t,
-      stock: { ...base.stock, cards: [] },
+      stock: {
+        ...base.stock,
+        cards: [
+          { id: "hearts-7" as CardId, suit: "hearts", rank: 7, faceUp: false },
+        ],
+      },
       waste: {
         ...base.waste,
         cards: [
@@ -81,7 +88,12 @@ describe("canAutoComplete", () => {
         ],
       },
     };
-    expect(canAutoComplete(notReady)).toBe(false);
+    expect(canAutoComplete(ready)).toBe(true);
+  });
+
+  it("is false when any tableau card is still face-down", () => {
+    const base = dealKlondike("seed-1");
+    expect(canAutoComplete(base)).toBe(false);
   });
 
   it("is false when game is already won", () => {

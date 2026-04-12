@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useGameStore } from "@/lib/store/gameStore";
+import { NewGameButton } from "./NewGameButton";
 
 function formatTime(ms: number): string {
   const sec = Math.max(0, Math.floor(ms / 1000));
@@ -12,10 +13,9 @@ function formatTime(ms: number): string {
 
 interface HeaderProps {
   onOpenStats: () => void;
-  onOpenSettings: () => void;
 }
 
-export function Header({ onOpenStats, onOpenSettings }: HeaderProps) {
+export function Header({ onOpenStats }: HeaderProps) {
   const score = useGameStore((s) => s.game.score);
   const moves = useGameStore((s) => s.game.moveCount);
   const startedAt = useGameStore((s) => s.game.startedAt);
@@ -23,7 +23,6 @@ export function Header({ onOpenStats, onOpenSettings }: HeaderProps) {
   const canUndo = useGameStore((s) => s.history.length > 0);
   const canAutoComplete = useGameStore((s) => s.canAutoComplete());
   const undo = useGameStore((s) => s.undo);
-  const newGame = useGameStore((s) => s.newGame);
   const autoComplete = useGameStore((s) => s.autoComplete);
   const requestHint = useGameStore((s) => s.requestHint);
   const drawMode = useGameStore((s) => s.settings.drawMode);
@@ -41,29 +40,24 @@ export function Header({ onOpenStats, onOpenSettings }: HeaderProps) {
   return (
     <header className="flex items-center justify-between gap-2 px-3 py-2 text-white text-sm">
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => newGame()}
-          className="rounded bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 px-3 py-1.5 font-medium shadow"
-        >
-          Neu
-        </button>
+        <NewGameButton />
         <button
           onClick={undo}
           disabled={!canUndo}
-          className="rounded bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 disabled:bg-zinc-800 disabled:opacity-50 px-3 py-1.5 font-medium shadow"
+          className="rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)] disabled:opacity-50 px-3 py-1.5 font-medium shadow"
         >
           Undo
         </button>
         <button
           onClick={requestHint}
-          className="rounded bg-amber-600 hover:bg-amber-500 active:bg-amber-700 px-3 py-1.5 font-medium shadow"
+          className="rounded bg-[var(--color-btn-hint)] hover:bg-[var(--color-btn-hint-hover)] active:bg-[var(--color-btn-hint-active)] px-3 py-1.5 font-medium shadow"
         >
           Tipp
         </button>
         {canAutoComplete && (
           <button
             onClick={() => autoComplete()}
-            className="rounded bg-amber-600 hover:bg-amber-500 px-3 py-1.5 font-medium shadow animate-pulse"
+            className="rounded bg-[var(--color-btn-hint)] hover:bg-[var(--color-btn-hint-hover)] px-3 py-1.5 font-medium shadow animate-pulse"
           >
             Auto-Complete
           </button>
@@ -89,17 +83,10 @@ export function Header({ onOpenStats, onOpenSettings }: HeaderProps) {
       <div className="flex items-center gap-2">
         <button
           onClick={onOpenStats}
-          className="rounded bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 shadow"
+          className="rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] px-3 py-1.5 shadow"
           aria-label="Statistik"
         >
           📊
-        </button>
-        <button
-          onClick={onOpenSettings}
-          className="rounded bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 shadow"
-          aria-label="Einstellungen"
-        >
-          ⚙
         </button>
       </div>
     </header>

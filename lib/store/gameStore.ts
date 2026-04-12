@@ -11,6 +11,7 @@ import { pickNextAutoMove } from "@/lib/game/autoComplete";
 import { findHint, type Hint } from "@/lib/game/hints";
 import { canAutoComplete, isWon } from "@/lib/game/win";
 import { finalScore } from "@/lib/game/scoring";
+import { dailySeed, findWinnableSeed } from "@/lib/game/solve";
 import {
   Settings,
   Stats,
@@ -25,11 +26,14 @@ import {
 } from "@/lib/persistence/storage";
 import type {
   CardId,
+  DealType,
   DrawMode,
   GameState,
   MoveIntent,
   PileId,
 } from "@/lib/game/types";
+
+export type { DealType };
 
 export interface ActiveHint {
   hint: Hint;
@@ -62,7 +66,11 @@ interface GameStore {
   // Drives the GameOverModal in GameShell.
   gameOverOpen: boolean;
 
-  newGame: (opts?: { seed?: string; drawMode?: DrawMode }) => void;
+  newGame: (opts?: {
+    seed?: string;
+    drawMode?: DrawMode;
+    dealType?: DealType;
+  }) => void;
   dispatchMove: (intent: MoveIntent) => boolean;
   drawFromStock: () => void;
   recycleWaste: () => void;
@@ -103,7 +111,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   newGame: (opts) => {
     const drawMode = opts?.drawMode ?? get().settings.drawMode;
-    const game = dealKlondike(opts?.seed, drawMode);
+    const dealType = opts?.dealType ?? get().settings.dealType;
+
+    let seed: string | undefined = opts?.seed;
+    if (dealType === "winnable") {
+      const found = findWinnableSeed(drawMode);
+      if (found) seed = found;
+      // If no winnable seed found (very unlikely), fall through to random.
+    } else if (dealType === "replay") {
+      seed = get().game.seed;
+    } else if (dealType === "daily") {
+      seed = dailySeed(drawMode);
+    }
+
+    // Persist the selected deal type (but "replay" is transient — keep the
+    // underlying mode so the next plain "Neu" click uses the right type).
+    const persistedDealType = dealType === "replay" ? get().settings.dealType : dealType;
+    const nextSettings = { ...get().settings, drawMode, dealType: persistedDealType };
+    set({ settings: nextSettings });
+    saveSettings(nextSettings);
+
+    const game = dealKlondike(seed, drawMode);
     set({
       game,
       history: [],

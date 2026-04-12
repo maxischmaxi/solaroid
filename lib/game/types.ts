@@ -35,6 +35,10 @@ export interface Pile {
 
 export type DrawMode = 1 | 3;
 
+export type DealType = "random" | "winnable" | "replay" | "daily";
+
+export type ThemeId = "classic" | "neon" | "vintage";
+
 export type GameStatus = "idle" | "playing" | "won";
 
 export interface GameState {

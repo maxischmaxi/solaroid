@@ -75,7 +75,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de" className="h-full antialiased">
+    <html lang="de" className="h-full antialiased" data-theme="classic">
       <body className="min-h-dvh flex flex-col">{children}</body>
     </html>
   );

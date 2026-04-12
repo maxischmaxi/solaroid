@@ -4,6 +4,7 @@
 
 import { colorOf } from "@/lib/game/constants";
 import type { Rank, Suit } from "@/lib/game/types";
+import { getActiveTheme } from "@/lib/theme/activeTheme";
 import { PIP_LAYOUTS } from "./pipLayouts";
 
 /* ---------- Glyphs and labels ---------- */
@@ -31,34 +32,19 @@ export const RANK_LABEL: Record<Rank, string> = {
   13: "K",
 };
 
-/* ---------- Color palette (matches Tailwind classes used previously) ---------- */
+/* ---------- Color palette + fonts — read from active theme ---------- */
 
-const COLOR = {
-  white: "#ffffff",
-  cardRing: "rgba(0,0,0,0.15)",
-  faceBoxRing: "rgba(0,0,0,0.10)",
-  red: "#e11d48", // rose-600
-  black: "#18181b", // zinc-900
-  // Back gradient (sky-700 → sky-900)
-  backFrom: "#0369a1",
-  backTo: "#0c4a6e",
-  backInnerRing: "rgba(255,255,255,0.30)",
-  backStripeA: "rgba(255,255,255,0.16)",
-  backStripeB: "rgba(255,255,255,0.12)",
-  // Face card center box (zinc-50 → zinc-200)
-  faceBoxFrom: "#fafafa",
-  faceBoxTo: "#e4e4e7",
-  // Empty pile placeholders
-  emptyBg: "rgba(255,255,255,0.04)",
-  emptyDash: "rgba(255,255,255,0.18)",
-  emptyHintStock: "rgba(255,255,255,0.50)",
-  emptyHintFoundation: "rgba(255,255,255,0.30)",
-};
+function pal() {
+  return getActiveTheme().card;
+}
 
-const FONT_STACK =
-  'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-const SERIF_STACK =
-  'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif';
+function fontStack() {
+  return getActiveTheme().fonts.primary;
+}
+
+function serifStack() {
+  return getActiveTheme().fonts.serif;
+}
 
 /* ---------- Public API ---------- */
 
@@ -73,16 +59,17 @@ export function drawCardFront(
   suit: Suit,
   rank: Rank,
 ): void {
-  const fg = colorOf(suit) === "red" ? COLOR.red : COLOR.black;
+  const p = pal();
+  const fg = colorOf(suit) === "red" ? p.red : p.black;
   const r = w * 0.06;
 
-  // Drop shadow + base white card
+  // Drop shadow + base card
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.18)";
+  ctx.shadowColor = p.cardShadow;
   ctx.shadowBlur = w * 0.10;
   ctx.shadowOffsetY = w * 0.03;
   roundRect(ctx, 0, 0, w, h, r);
-  ctx.fillStyle = COLOR.white;
+  ctx.fillStyle = p.cardBg;
   ctx.fill();
   ctx.restore();
 
@@ -90,7 +77,7 @@ export function drawCardFront(
   ctx.save();
   roundRect(ctx, 0.5, 0.5, w - 1, h - 1, r);
   ctx.lineWidth = 1;
-  ctx.strokeStyle = COLOR.cardRing;
+  ctx.strokeStyle = p.cardRing;
   ctx.stroke();
   ctx.restore();
 
@@ -121,17 +108,18 @@ export function drawCardBack(
   w: number,
   h: number,
 ): void {
+  const p = pal();
   const r = w * 0.06;
 
   // Base gradient
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.20)";
+  ctx.shadowColor = p.cardShadow;
   ctx.shadowBlur = w * 0.10;
   ctx.shadowOffsetY = w * 0.03;
   roundRect(ctx, 0, 0, w, h, r);
   const grad = ctx.createLinearGradient(0, 0, w, h);
-  grad.addColorStop(0, COLOR.backFrom);
-  grad.addColorStop(1, COLOR.backTo);
+  grad.addColorStop(0, p.backFrom);
+  grad.addColorStop(1, p.backTo);
   ctx.fillStyle = grad;
   ctx.fill();
   ctx.restore();
@@ -156,7 +144,7 @@ export function drawCardBack(
     innerW,
     innerH,
     /* angle deg */ 45,
-    COLOR.backStripeA,
+    p.backStripeA,
     /* stripeW */ Math.max(2, w * 0.045),
     /* gapW */ Math.max(3, w * 0.067),
   );
@@ -168,17 +156,17 @@ export function drawCardBack(
     innerW,
     innerH,
     /* angle deg */ -45,
-    COLOR.backStripeB,
+    p.backStripeB,
     Math.max(2, w * 0.045),
     Math.max(3, w * 0.067),
   );
   ctx.restore();
 
-  // Inner ring (white/30)
+  // Inner ring
   ctx.save();
   roundRect(ctx, innerX + 0.5, innerY + 0.5, innerW - 1, innerH - 1, innerR);
   ctx.lineWidth = 1;
-  ctx.strokeStyle = COLOR.backInnerRing;
+  ctx.strokeStyle = p.backInnerRing;
   ctx.stroke();
   ctx.restore();
 }
@@ -202,8 +190,8 @@ export function drawEmptyStock(
   drawEmptySlot(ctx, w, h);
   if (showRecycle) {
     ctx.save();
-    ctx.fillStyle = COLOR.emptyHintStock;
-    ctx.font = `${Math.round(w * 0.4)}px ${FONT_STACK}`;
+    ctx.fillStyle = pal().emptyHintStock;
+    ctx.font = `${Math.round(w * 0.4)}px ${fontStack()}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("\u21BB", w / 2, h / 2);
@@ -219,8 +207,8 @@ export function drawEmptyFoundation(
 ): void {
   drawEmptySlot(ctx, w, h);
   ctx.save();
-  ctx.fillStyle = COLOR.emptyHintFoundation;
-  ctx.font = `${Math.round(w * 0.4)}px ${FONT_STACK}`;
+  ctx.fillStyle = pal().emptyHintFoundation;
+  ctx.font = `${Math.round(w * 0.4)}px ${fontStack()}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("\u2662", w / 2, h / 2);
@@ -234,14 +222,15 @@ function drawEmptySlot(
   w: number,
   h: number,
 ): void {
+  const p = pal();
   const r = w * 0.06;
   ctx.save();
   roundRect(ctx, 0, 0, w, h, r);
-  ctx.fillStyle = COLOR.emptyBg;
+  ctx.fillStyle = p.emptyBg;
   ctx.fill();
   ctx.lineWidth = 2;
   ctx.setLineDash([4, 3]);
-  ctx.strokeStyle = COLOR.emptyDash;
+  ctx.strokeStyle = p.emptyDash;
   ctx.stroke();
   ctx.restore();
 }
@@ -271,11 +260,11 @@ function drawCornerIndex(
   ctx.textBaseline = "top";
 
   // Rank label (bold)
-  ctx.font = `bold ${fontPx}px ${FONT_STACK}`;
+  ctx.font = `bold ${fontPx}px ${fontStack()}`;
   ctx.fillText(RANK_LABEL[rank], padX, padY);
 
   // Suit glyph just below the rank, leading-none ≈ 0.95 * fontPx
-  ctx.font = `${fontPx}px ${FONT_STACK}`;
+  ctx.font = `${fontPx}px ${fontStack()}`;
   ctx.fillText(SUIT_GLYPH[suit], padX, padY + fontPx * 0.95);
 
   ctx.restore();
@@ -290,7 +279,7 @@ function drawAceCenter(
 ): void {
   ctx.save();
   ctx.fillStyle = fg;
-  ctx.font = `${Math.round(w * 0.62)}px ${FONT_STACK}`;
+  ctx.font = `${Math.round(w * 0.62)}px ${fontStack()}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(SUIT_GLYPH[suit], w / 2, h / 2);
@@ -315,12 +304,13 @@ function drawFaceCard(
   ctx.save();
   roundRect(ctx, ix, iy, iw, ih, ir);
   const grad = ctx.createLinearGradient(ix, iy, ix + iw, iy + ih);
-  grad.addColorStop(0, COLOR.faceBoxFrom);
-  grad.addColorStop(1, COLOR.faceBoxTo);
+  const p = pal();
+  grad.addColorStop(0, p.faceBoxFrom);
+  grad.addColorStop(1, p.faceBoxTo);
   ctx.fillStyle = grad;
   ctx.fill();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = COLOR.faceBoxRing;
+  ctx.strokeStyle = p.faceBoxRing;
   ctx.stroke();
   ctx.restore();
 
@@ -330,13 +320,13 @@ function drawFaceCard(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const labelPx = Math.round(w * 0.42);
-  ctx.font = `600 ${labelPx}px ${SERIF_STACK}`;
+  ctx.font = `600 ${labelPx}px ${serifStack()}`;
   // Slightly above the box center to make room for the suit glyph below.
   ctx.fillText(RANK_LABEL[rank], w / 2, iy + ih * 0.40);
 
   // Suit glyph below
   const glyphPx = Math.round(w * 0.24);
-  ctx.font = `${glyphPx}px ${FONT_STACK}`;
+  ctx.font = `${glyphPx}px ${fontStack()}`;
   ctx.fillText(SUIT_GLYPH[suit], w / 2, iy + ih * 0.74);
   ctx.restore();
 }
@@ -361,7 +351,7 @@ function drawPipGrid(
 
   ctx.save();
   ctx.fillStyle = fg;
-  ctx.font = `${pipFontPx}px ${FONT_STACK}`;
+  ctx.font = `${pipFontPx}px ${fontStack()}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 

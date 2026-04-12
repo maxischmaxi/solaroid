@@ -1,7 +1,7 @@
 // localStorage persistence for settings, stats, and current game.
 // All loads return defaults on first run / parse failure / SSR.
 
-import type { DrawMode, GameState } from "@/lib/game/types";
+import type { DealType, DrawMode, GameState, ThemeId } from "@/lib/game/types";
 
 const SETTINGS_KEY = "solitaer:settings:v1";
 const STATS_KEY = "solitaer:stats:v1";
@@ -10,6 +10,8 @@ const GAME_KEY = "solitaer:currentGame:v1";
 export interface Settings {
   drawMode: DrawMode;
   autoCompleteEnabled: boolean;
+  dealType: DealType;
+  theme: ThemeId;
 }
 
 export interface Stats {
@@ -29,6 +31,8 @@ export interface PersistedGame {
 export const defaultSettings: Settings = {
   drawMode: 1,
   autoCompleteEnabled: true,
+  theme: "classic",
+  dealType: "random",
 };
 
 export const defaultStats: Stats = {

@@ -28,23 +28,23 @@ export function StatsModal({ open, onClose }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Statistik">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        <dt className="text-zinc-500">Gespielt</dt>
+        <dt className="text-[var(--color-modal-subtext)]">Gespielt</dt>
         <dd className="text-right font-semibold">{stats.gamesPlayed}</dd>
-        <dt className="text-zinc-500">Gewonnen</dt>
+        <dt className="text-[var(--color-modal-subtext)]">Gewonnen</dt>
         <dd className="text-right font-semibold">{stats.gamesWon}</dd>
-        <dt className="text-zinc-500">Quote</dt>
+        <dt className="text-[var(--color-modal-subtext)]">Quote</dt>
         <dd className="text-right font-semibold">{winRate}%</dd>
-        <dt className="text-zinc-500">Beste Zeit</dt>
+        <dt className="text-[var(--color-modal-subtext)]">Beste Zeit</dt>
         <dd className="text-right font-semibold tabular-nums">
           {formatTime(stats.bestTimeMs)}
         </dd>
-        <dt className="text-zinc-500">Bester Score</dt>
+        <dt className="text-[var(--color-modal-subtext)]">Bester Score</dt>
         <dd className="text-right font-semibold">
           {stats.bestScore ?? "—"}
         </dd>
-        <dt className="text-zinc-500">Aktuelle Serie</dt>
+        <dt className="text-[var(--color-modal-subtext)]">Aktuelle Serie</dt>
         <dd className="text-right font-semibold">{stats.currentStreak}</dd>
-        <dt className="text-zinc-500">Längste Serie</dt>
+        <dt className="text-[var(--color-modal-subtext)]">Längste Serie</dt>
         <dd className="text-right font-semibold">{stats.longestStreak}</dd>
       </dl>
       <div className="mt-4 flex justify-end">

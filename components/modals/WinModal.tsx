@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import confetti from "canvas-confetti";
 import { useGameStore } from "@/lib/store/gameStore";
 import { Modal } from "./Modal";
+import { NewGameButton } from "@/components/game/NewGameButton";
 
 interface Props {
   open: boolean;
@@ -19,7 +20,6 @@ function formatTime(ms: number): string {
 
 export function WinModal({ open, onClose }: Props) {
   const game = useGameStore((s) => s.game);
-  const newGame = useGameStore((s) => s.newGame);
 
   useEffect(() => {
     if (!open) return;
@@ -44,26 +44,26 @@ export function WinModal({ open, onClose }: Props) {
     <Modal open={open} onClose={onClose} title="Gewonnen!">
       <div className="space-y-3 text-center">
         <p className="text-3xl">🎉</p>
-        <p className="text-zinc-700">Bravo, du hast das Spiel gemeistert.</p>
+        <p className="text-[var(--color-modal-subtext)]">
+          Bravo, du hast das Spiel gemeistert.
+        </p>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mt-4">
-          <dt className="text-zinc-500 text-right">Zeit</dt>
+          <dt className="text-[var(--color-modal-subtext)] text-right">Zeit</dt>
           <dd className="text-left font-semibold tabular-nums">
             {formatTime(elapsed)}
           </dd>
-          <dt className="text-zinc-500 text-right">Score</dt>
+          <dt className="text-[var(--color-modal-subtext)] text-right">Score</dt>
           <dd className="text-left font-semibold">{game.score}</dd>
-          <dt className="text-zinc-500 text-right">Züge</dt>
+          <dt className="text-[var(--color-modal-subtext)] text-right">Züge</dt>
           <dd className="text-left font-semibold">{game.moveCount}</dd>
         </dl>
-        <button
-          onClick={() => {
-            newGame();
-            onClose();
-          }}
-          className="mt-4 w-full rounded bg-emerald-700 hover:bg-emerald-600 text-white font-medium py-2"
-        >
-          Neues Spiel
-        </button>
+        <div className="mt-4">
+          <NewGameButton
+            label="Neues Spiel"
+            fullWidth
+            onAfterStart={onClose}
+          />
+        </div>
       </div>
     </Modal>
   );

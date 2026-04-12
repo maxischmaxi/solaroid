@@ -3,7 +3,7 @@
 // gradients) and we do it once per cardW×dpr combo, then blit on every frame.
 
 import { SUITS, RANKS } from "@/lib/game/constants";
-import type { CardId, Rank, Suit } from "@/lib/game/types";
+import type { CardId, Rank, Suit, ThemeId } from "@/lib/game/types";
 import {
   drawCardBack,
   drawCardFront,
@@ -21,6 +21,7 @@ export interface SpriteCache {
   cardW: number;
   cardH: number;
   dpr: number;
+  themeId: ThemeId;
 }
 
 /**
@@ -33,6 +34,7 @@ export function buildSprites(
   cardW: number,
   cardH: number,
   dpr: number,
+  themeId: ThemeId,
 ): SpriteCache {
   const faces = new Map<CardId, HTMLCanvasElement>();
 
@@ -60,6 +62,7 @@ export function buildSprites(
     cardW,
     cardH,
     dpr,
+    themeId,
   };
 }
 

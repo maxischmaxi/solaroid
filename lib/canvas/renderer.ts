@@ -7,14 +7,8 @@
 import { spriteLogicalSize, spriteMargin, type SpriteCache } from "./sprites";
 import type { HintScene, Layout, Scene, WinFinaleScene } from "./types";
 import type { CardId, PileId } from "@/lib/game/types";
-
-const FELT_DARK = "#064d27";
-const HOVER_RING = "rgba(110,231,183,0.85)"; // emerald-300/85
-const HOVER_RING_GLOW = "rgba(110,231,183,0.18)";
-const HINT_RING = "rgba(252,211,77,0.95)"; // amber-300
-const HINT_GLOW = "rgba(252,211,77,0.25)";
-const HINT_GHOST_ALPHA = 0.7;
-const DRAG_GHOST_OPACITY = 0.30;
+import { getActiveTheme } from "@/lib/theme/activeTheme";
+import { rgba } from "@/lib/theme/themes";
 
 export function renderScene(
   ctx: CanvasRenderingContext2D,
@@ -22,9 +16,9 @@ export function renderScene(
 ): void {
   const { layout, sprites, anims, drag, hoveredPile, winFinale } = scene;
 
-  // 1. Clear to felt-dark
+  // 1. Clear to felt
   ctx.save();
-  ctx.fillStyle = FELT_DARK;
+  ctx.fillStyle = getActiveTheme().board.felt;
   ctx.fillRect(0, 0, layout.boardW, layout.boardH);
   ctx.restore();
 
@@ -75,11 +69,6 @@ function drawEmptySlots(
     if (pile.cards.length > 0) continue;
     let sprite: HTMLCanvasElement | null = null;
     if (pile.kind === "stock") {
-      // The recycle hint is shown if waste has cards — but we don't know that
-      // here. The renderer is given a flag in the Scene? Simpler: we always
-      // draw the recycle variant; if we want to omit it the layout could
-      // surface a hint. For now: show ↻ when stock is empty so the user
-      // discovers the recycle action.
       sprite = sprites.emptyStockRecycle;
     } else if (pile.kind === "tableau") {
       sprite = sprites.emptyTableau;
@@ -101,14 +90,15 @@ function drawDropHighlight(
   const pile = layout.piles[hoveredPile];
   if (!pile) return;
   const r = pile.dropRect;
+  const { hoverRing } = getActiveTheme().board;
   ctx.save();
   // Outer glow
   ctx.lineWidth = 6;
-  ctx.strokeStyle = HOVER_RING_GLOW;
+  ctx.strokeStyle = rgba(hoverRing, 0.18);
   strokeRoundRect(ctx, r.x - 2, r.y - 2, r.w + 4, r.h + 4, layout.cardW * 0.06);
   // Inner ring
   ctx.lineWidth = 2;
-  ctx.strokeStyle = HOVER_RING;
+  ctx.strokeStyle = rgba(hoverRing, 0.85);
   strokeRoundRect(ctx, r.x, r.y, r.w, r.h, layout.cardW * 0.06);
   ctx.restore();
 }
@@ -150,9 +140,6 @@ function drawAllCards(
     }
 
     if (pile.kind === "waste") {
-      // Render only the visible (last drawMode) cards in waste, in fan order.
-      // For simplicity we render every card — the non-visible ones share the
-      // base x with the bottom of the fan and end up overdrawn anyway.
       for (const c of pile.cards) {
         if (suppressIds.has(c.cardId) || dragIds?.has(c.cardId)) continue;
         const sprite = c.faceUp
@@ -227,7 +214,7 @@ function drawHintLayer(
   drawHintRing(ctx, hint.to, radius, hint.pulse);
   const sprite = sprites.faces.get(hint.cardId) ?? sprites.back;
   ctx.save();
-  ctx.globalAlpha = HINT_GHOST_ALPHA;
+  ctx.globalAlpha = getActiveTheme().board.hintGhostAlpha;
   blitSprite(ctx, sprite, hint.ghostX, hint.ghostY);
   ctx.restore();
 }
@@ -238,15 +225,16 @@ function drawHintRing(
   radius: number,
   pulse: number,
 ): void {
+  const { hintRing } = getActiveTheme().board;
   // Pulse ranges 0..1 → glow alpha 0.15..0.45 and ring alpha 0.6..1.
   const glowAlpha = 0.15 + pulse * 0.3;
   const ringAlpha = 0.6 + pulse * 0.4;
   ctx.save();
   ctx.lineWidth = 6;
-  ctx.strokeStyle = HINT_GLOW.replace("0.25", glowAlpha.toFixed(3));
+  ctx.strokeStyle = rgba(hintRing, glowAlpha);
   strokeRoundRect(ctx, rect.x - 3, rect.y - 3, rect.w + 6, rect.h + 6, radius);
   ctx.lineWidth = 2.5;
-  ctx.strokeStyle = HINT_RING.replace("0.95", ringAlpha.toFixed(3));
+  ctx.strokeStyle = rgba(hintRing, ringAlpha);
   strokeRoundRect(ctx, rect.x, rect.y, rect.w, rect.h, radius);
   ctx.restore();
 }
@@ -258,10 +246,11 @@ function drawDrawsBadge(
   cardW: number,
 ): void {
   if (draws <= 0) return;
+  const board = getActiveTheme().board;
   const text = `${draws}x`;
   const fontSize = Math.round(cardW * 0.28);
   ctx.save();
-  ctx.font = `bold ${fontSize}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
+  ctx.font = `bold ${fontSize}px ${getActiveTheme().fonts.primary}`;
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
 
@@ -274,7 +263,7 @@ function drawDrawsBadge(
   const by = target.y + target.h + 6;
 
   // Badge background
-  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillStyle = board.badgeBg;
   const br = bh / 2;
   ctx.beginPath();
   const rc = ctx as CanvasRenderingContext2D & {
@@ -293,7 +282,7 @@ function drawDrawsBadge(
   ctx.fill();
 
   // Badge text
-  ctx.fillStyle = "#fcd34d"; // amber-300
+  ctx.fillStyle = board.badgeText;
   ctx.fillText(text, bx + bw / 2, by + bh / 2);
   ctx.restore();
 }
@@ -304,8 +293,6 @@ function drawDragLayer(
   drag: NonNullable<Scene<SpriteCache>["drag"]>,
   fanDown: number,
 ): void {
-  // Optional drop shadow lift via globalAlpha tweak — handled by the sprite
-  // shadow already. We just stack the run with fanDown spacing.
   const baseX = drag.pt.x - drag.grabOffset.x;
   const baseY = drag.pt.y - drag.grabOffset.y;
   for (let i = 0; i < drag.cards.length; i++) {
@@ -359,6 +346,3 @@ function strokeRoundRect(
   }
   ctx.stroke();
 }
-
-// silence unused warning for the renderer's intentional opacity constant
-void DRAG_GHOST_OPACITY;

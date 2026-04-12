@@ -3,11 +3,103 @@
 @theme inline {
   --color-felt: #0b6b3a;
   --color-felt-dark: #064d27;
+  --color-btn-primary: #047857;
+  --color-btn-primary-hover: #059669;
+  --color-btn-primary-active: #065f46;
+  --color-btn-primary-border: rgba(5, 150, 105, 0.5);
+  --color-btn-secondary: #3f3f46;
+  --color-btn-secondary-hover: #52525b;
+  --color-btn-secondary-active: #27272a;
+  --color-btn-hint: #d97706;
+  --color-btn-hint-hover: #f59e0b;
+  --color-btn-hint-active: #b45309;
+  --color-active: #34d399;
+  --color-dropdown-bg: #27272a;
+  --color-dropdown-border: #3f3f46;
+  --color-dropdown-hover: #3f3f46;
+  --color-dropdown-subtext: #a1a1aa;
+  --color-modal-bg: #f4f4f5;
+  --color-modal-text: #18181b;
+  --color-modal-border: #e4e4e7;
+  --color-modal-subtext: #71717a;
+  --color-modal-backdrop: rgba(0, 0, 0, 0.6);
+  --color-modal-close: #71717a;
+  --color-modal-close-hover: #18181b;
+  --color-btn-modal-secondary-bg: #e4e4e7;
+  --color-btn-modal-secondary-hover: #d4d4d8;
+  --color-btn-modal-secondary-text: #27272a;
 }
 
+/* ---- Classic (default — matches @theme values) ---- */
+html[data-theme="classic"],
 :root {
-  --background: var(--color-felt-dark);
+  --color-felt: #0b6b3a;
+  --color-felt-dark: #064d27;
   --foreground: #f5f5f5;
+}
+
+/* ---- Neon / Cyberpunk ---- */
+html[data-theme="neon"] {
+  --color-felt: #0d0d24;
+  --color-felt-dark: #0a0a1a;
+  --foreground: #e0e0ff;
+  --color-btn-primary: #7c3aed;
+  --color-btn-primary-hover: #8b5cf6;
+  --color-btn-primary-active: #6d28d9;
+  --color-btn-primary-border: rgba(139, 92, 246, 0.5);
+  --color-btn-secondary: #1e1b4b;
+  --color-btn-secondary-hover: #2e2a6e;
+  --color-btn-secondary-active: #161340;
+  --color-btn-hint: #ec4899;
+  --color-btn-hint-hover: #f472b6;
+  --color-btn-hint-active: #db2777;
+  --color-active: #00f0ff;
+  --color-dropdown-bg: #0f0f23;
+  --color-dropdown-border: #2d1b69;
+  --color-dropdown-hover: #1a1a3e;
+  --color-dropdown-subtext: #7c7caa;
+  --color-modal-bg: #1a1a2e;
+  --color-modal-text: #e0e0ff;
+  --color-modal-border: #2d1b69;
+  --color-modal-subtext: #9090cc;
+  --color-modal-backdrop: rgba(0, 0, 0, 0.75);
+  --color-modal-close: #9090cc;
+  --color-modal-close-hover: #e0e0ff;
+  --color-btn-modal-secondary-bg: #1e1b4b;
+  --color-btn-modal-secondary-hover: #2e2a6e;
+  --color-btn-modal-secondary-text: #e0e0ff;
+}
+
+/* ---- Vintage / Retro ---- */
+html[data-theme="vintage"] {
+  --color-felt: #4a3728;
+  --color-felt-dark: #3d2b1f;
+  --foreground: #faf5e8;
+  --color-btn-primary: #78350f;
+  --color-btn-primary-hover: #92400e;
+  --color-btn-primary-active: #613009;
+  --color-btn-primary-border: rgba(146, 64, 14, 0.5);
+  --color-btn-secondary: #44403c;
+  --color-btn-secondary-hover: #57534e;
+  --color-btn-secondary-active: #373330;
+  --color-btn-hint: #b45309;
+  --color-btn-hint-hover: #d97706;
+  --color-btn-hint-active: #92400e;
+  --color-active: #c9a227;
+  --color-dropdown-bg: #292524;
+  --color-dropdown-border: #44403c;
+  --color-dropdown-hover: #3a3530;
+  --color-dropdown-subtext: #a8a29e;
+  --color-modal-bg: #f5eed6;
+  --color-modal-text: #2c1810;
+  --color-modal-border: #d4c5a0;
+  --color-modal-subtext: #78716c;
+  --color-modal-backdrop: rgba(30, 18, 8, 0.65);
+  --color-modal-close: #78716c;
+  --color-modal-close-hover: #2c1810;
+  --color-btn-modal-secondary-bg: #d4c5a0;
+  --color-btn-modal-secondary-hover: #c4b590;
+  --color-btn-modal-secondary-text: #2c1810;
 }
 
 html,

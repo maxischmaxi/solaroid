@@ -18,6 +18,8 @@ import type { WinFinaleParticle } from "@/lib/canvas/winFinale";
 import type { DragState, HintScene, Layout, Rect } from "@/lib/canvas/types";
 import { WinFinale } from "@/lib/canvas/winFinale";
 import type { CardId, GameState, PileId } from "@/lib/game/types";
+import { setActiveTheme } from "@/lib/theme/activeTheme";
+import { THEMES } from "@/lib/theme/themes";
 import type { ActiveHint } from "@/lib/store/gameStore";
 import { CanvasBoardA11y } from "./CanvasBoardA11y";
 
@@ -98,15 +100,19 @@ export function CanvasBoard() {
       canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const game = useGameStore.getState().game;
+      const state = useGameStore.getState();
+      const game = state.game;
+      const themeId = state.settings.theme;
+      setActiveTheme(THEMES[themeId]);
       layout = computeLayout(game, w, h, game.drawMode);
-      // Rebuild sprites whenever cardW or dpr changes.
+      // Rebuild sprites whenever cardW, dpr, or theme changes.
       if (
         !sprites ||
         Math.abs(sprites.cardW - layout.cardW) > 0.5 ||
-        sprites.dpr !== dpr
+        sprites.dpr !== dpr ||
+        sprites.themeId !== themeId
       ) {
-        sprites = buildSprites(layout.cardW, layout.cardH, dpr);
+        sprites = buildSprites(layout.cardW, layout.cardH, dpr, themeId);
       }
       requestDraw();
     };
@@ -279,6 +285,19 @@ export function CanvasBoard() {
       }
     });
 
+    // ----- Theme changes -----
+    const unsubTheme = useGameStore.subscribe((s, prev) => {
+      if (s.settings.theme === prev.settings.theme) return;
+      setActiveTheme(THEMES[s.settings.theme]);
+      sprites = buildSprites(
+        layout!.cardW,
+        layout!.cardH,
+        dpr,
+        s.settings.theme,
+      );
+      requestDraw();
+    });
+
     // ----- Pointer events -----
     const detachInput = attachInput(canvas, {
       getLayout: () => layout,
@@ -353,6 +372,7 @@ export function CanvasBoard() {
       unsubGame();
       unsubFinale();
       unsubHint();
+      unsubTheme();
       ro.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
       motionMq.removeEventListener?.("change", onMotionChange);

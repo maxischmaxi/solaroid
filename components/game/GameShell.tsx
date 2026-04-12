@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useGameStore } from "@/lib/store/gameStore";
+import { THEMES } from "@/lib/theme/themes";
 import { CanvasBoard } from "./CanvasBoard";
 import { Header } from "./Header";
 import { GameOverModal } from "@/components/modals/GameOverModal";
-import { SettingsModal } from "@/components/modals/SettingsModal";
 import { StatsModal } from "@/components/modals/StatsModal";
 import { WinModal } from "@/components/modals/WinModal";
 
@@ -13,9 +13,6 @@ export function GameShell() {
   const hydrated = useGameStore((s) => s.hydrated);
   const hydrate = useGameStore((s) => s.hydrate);
   const gameStatus = useGameStore((s) => s.game.status);
-  const autoCompleteEnabled = useGameStore(
-    (s) => s.settings.autoCompleteEnabled,
-  );
   const canAutoComplete = useGameStore((s) => s.canAutoComplete());
   const autoComplete = useGameStore((s) => s.autoComplete);
   const autoCompleteRunning = useGameStore((s) => s.autoCompleteRunning);
@@ -23,14 +20,24 @@ export function GameShell() {
   const gameOverOpen = useGameStore((s) => s.gameOverOpen);
   const closeGameOver = useGameStore((s) => s.closeGameOver);
 
+  const themeId = useGameStore((s) => s.settings.theme);
+
   const [statsOpen, setStatsOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [winOpen, setWinOpen] = useState(false);
 
   // Initial hydration from localStorage on mount.
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  // Sync data-theme attribute on <html> and update meta theme-color.
+  useEffect(() => {
+    document.documentElement.dataset.theme = themeId;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute("content", THEMES[themeId].board.felt);
+    }
+  }, [themeId]);
 
   // Open the win modal once the canvas has finished its win-finale cascade.
   // While the cascade is still running we let the player enjoy the cards
@@ -41,12 +48,12 @@ export function GameShell() {
     }
   }, [gameStatus, winFinalePlaying]);
 
-  // Auto-trigger auto-complete when eligible (and the user has it enabled).
+  // Auto-trigger auto-complete when eligible — always on.
   useEffect(() => {
-    if (canAutoComplete && autoCompleteEnabled && !autoCompleteRunning) {
+    if (canAutoComplete && !autoCompleteRunning) {
       autoComplete();
     }
-  }, [canAutoComplete, autoCompleteEnabled, autoCompleteRunning, autoComplete]);
+  }, [canAutoComplete, autoCompleteRunning, autoComplete]);
 
   return (
     <div
@@ -58,20 +65,13 @@ export function GameShell() {
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      <Header
-        onOpenStats={() => setStatsOpen(true)}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
+      <Header onOpenStats={() => setStatsOpen(true)} />
       {hydrated ? (
         <CanvasBoard />
       ) : (
         <div className="flex-1 bg-[var(--color-felt-dark)]" />
       )}
 
-      <SettingsModal
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
       <StatsModal open={statsOpen} onClose={() => setStatsOpen(false)} />
       <WinModal open={winOpen} onClose={() => setWinOpen(false)} />
       <GameOverModal open={gameOverOpen} onClose={closeGameOver} />

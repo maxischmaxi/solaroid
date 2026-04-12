@@ -1,6 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "solaroid",
+  "workers_dev": true,
+  "preview_urls": false,
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-04-12",
   "compatibility_flags": ["nodejs_compat"],

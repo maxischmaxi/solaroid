@@ -9,8 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "preview": "next build && npx wrangler pages dev out",
-    "deploy": "next build && npx wrangler pages deploy out --project-name=solaroid"
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
@@ -20,6 +20,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.19.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/react": "^16.3.2",
     "@types/canvas-confetti": "^1.9.0",
@@ -27,11 +28,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.1",
+    "esbuild": "^0.28.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "jsdom": "^29.0.2",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "wrangler": "^4.81.1"
   }
 }

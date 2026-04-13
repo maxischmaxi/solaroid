@@ -16,6 +16,87 @@ export const SUIT_GLYPH: Record<Suit, string> = {
   clubs: "\u2663",
 };
 
+/* ---------- Path-based suit drawing (font-independent, always filled) --- */
+
+/**
+ * Draw a filled suit symbol centered at (cx, cy).
+ * `size` roughly matches the font-size the glyph replaces.
+ */
+function drawSuitGlyph(
+  ctx: CanvasRenderingContext2D,
+  suit: Suit,
+  cx: number,
+  cy: number,
+  size: number,
+): void {
+  ctx.save();
+  ctx.translate(cx, cy);
+  const s = size * 0.45;
+  ctx.beginPath();
+
+  switch (suit) {
+    case "hearts": {
+      ctx.moveTo(0, s * 0.85);
+      ctx.bezierCurveTo(-s * 0.1, s * 0.6, -s, s * 0.1, -s, -s * 0.2);
+      ctx.bezierCurveTo(-s, -s * 0.65, -s * 0.45, -s * 0.85, 0, -s * 0.45);
+      ctx.bezierCurveTo(s * 0.45, -s * 0.85, s, -s * 0.65, s, -s * 0.2);
+      ctx.bezierCurveTo(s, s * 0.1, s * 0.1, s * 0.6, 0, s * 0.85);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case "diamonds": {
+      ctx.moveTo(0, -s * 0.9);
+      ctx.quadraticCurveTo(s * 0.2, -s * 0.25, s * 0.55, 0);
+      ctx.quadraticCurveTo(s * 0.2, s * 0.25, 0, s * 0.9);
+      ctx.quadraticCurveTo(-s * 0.2, s * 0.25, -s * 0.55, 0);
+      ctx.quadraticCurveTo(-s * 0.2, -s * 0.25, 0, -s * 0.9);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case "spades": {
+      ctx.moveTo(0, -s * 0.85);
+      ctx.bezierCurveTo(-s * 0.1, -s * 0.6, -s, -s * 0.1, -s, s * 0.2);
+      ctx.bezierCurveTo(-s, s * 0.65, -s * 0.45, s * 0.85, 0, s * 0.45);
+      ctx.bezierCurveTo(s * 0.45, s * 0.85, s, s * 0.65, s, s * 0.2);
+      ctx.bezierCurveTo(s, -s * 0.1, s * 0.1, -s * 0.6, 0, -s * 0.85);
+      ctx.closePath();
+      ctx.fill();
+      // Stem
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.15, s * 0.35);
+      ctx.lineTo(s * 0.15, s * 0.35);
+      ctx.lineTo(s * 0.25, s * 0.85);
+      ctx.lineTo(-s * 0.25, s * 0.85);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case "clubs": {
+      const r = s * 0.3;
+      ctx.arc(0, -s * 0.35, r, 0, Math.PI * 2);
+      ctx.moveTo(-s * 0.38 + r, s * 0.05);
+      ctx.arc(-s * 0.38, s * 0.05, r, 0, Math.PI * 2);
+      ctx.moveTo(s * 0.38 + r, s * 0.05);
+      ctx.arc(s * 0.38, s * 0.05, r, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      // Stem
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.15, s * 0.1);
+      ctx.lineTo(s * 0.15, s * 0.1);
+      ctx.lineTo(s * 0.2, s * 0.85);
+      ctx.lineTo(-s * 0.2, s * 0.85);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+  }
+
+  ctx.restore();
+}
+
 export const RANK_LABEL: Record<Rank, string> = {
   1: "A",
   2: "2",
@@ -86,11 +167,7 @@ export function drawCardFront(
   roundRect(ctx, 0, 0, w, h, r);
   ctx.clip();
 
-  // Corner indices: top-left and bottom-right (rotated 180°)
-  drawCornerIndex(ctx, w, h, suit, rank, fg, /* mirror */ false);
-  drawCornerIndex(ctx, w, h, suit, rank, fg, /* mirror */ true);
-
-  // Center artwork
+  // Center artwork (drawn first so corners appear on top for face cards)
   if (rank === 1) {
     drawAceCenter(ctx, w, h, suit, fg);
   } else if (rank >= 11) {
@@ -98,6 +175,10 @@ export function drawCardFront(
   } else {
     drawPipGrid(ctx, w, h, suit, rank, fg);
   }
+
+  // Corner indices: top-left and bottom-right (rotated 180°)
+  drawCornerIndex(ctx, w, h, suit, rank, fg, /* mirror */ false);
+  drawCornerIndex(ctx, w, h, suit, rank, fg, /* mirror */ true);
 
   ctx.restore();
 }
@@ -263,9 +344,8 @@ function drawCornerIndex(
   ctx.font = `bold ${fontPx}px ${fontStack()}`;
   ctx.fillText(RANK_LABEL[rank], padX, padY);
 
-  // Suit glyph just below the rank, leading-none ≈ 0.95 * fontPx
-  ctx.font = `${fontPx}px ${fontStack()}`;
-  ctx.fillText(SUIT_GLYPH[suit], padX, padY + fontPx * 0.95);
+  // Suit glyph just below the rank, centered under the label
+  drawSuitGlyph(ctx, suit, padX + fontPx * 0.35, padY + fontPx * 1.4, fontPx);
 
   ctx.restore();
 }
@@ -279,10 +359,7 @@ function drawAceCenter(
 ): void {
   ctx.save();
   ctx.fillStyle = fg;
-  ctx.font = `${Math.round(w * 0.62)}px ${fontStack()}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(SUIT_GLYPH[suit], w / 2, h / 2);
+  drawSuitGlyph(ctx, suit, w / 2, h / 2, Math.round(w * 0.62));
   ctx.restore();
 }
 
@@ -326,8 +403,7 @@ function drawFaceCard(
 
   // Suit glyph below
   const glyphPx = Math.round(w * 0.24);
-  ctx.font = `${glyphPx}px ${fontStack()}`;
-  ctx.fillText(SUIT_GLYPH[suit], w / 2, iy + ih * 0.74);
+  drawSuitGlyph(ctx, suit, w / 2, iy + ih * 0.74, glyphPx);
   ctx.restore();
 }
 
@@ -351,9 +427,6 @@ function drawPipGrid(
 
   ctx.save();
   ctx.fillStyle = fg;
-  ctx.font = `${pipFontPx}px ${fontStack()}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
 
   for (const [cx, cy] of positions) {
     const px = ix + cx * iw;
@@ -362,10 +435,10 @@ function drawPipGrid(
       ctx.save();
       ctx.translate(px, py);
       ctx.rotate(Math.PI);
-      ctx.fillText(SUIT_GLYPH[suit], 0, 0);
+      drawSuitGlyph(ctx, suit, 0, 0, pipFontPx);
       ctx.restore();
     } else {
-      ctx.fillText(SUIT_GLYPH[suit], px, py);
+      drawSuitGlyph(ctx, suit, px, py, pipFontPx);
     }
   }
 

@@ -10,6 +10,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
+    // Glob above already picks up tests/persistence/*.test.ts — listed here
+    // to document the three test families: game, canvas, persistence.
     globals: false,
   },
 });

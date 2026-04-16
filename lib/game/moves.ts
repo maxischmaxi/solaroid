@@ -155,6 +155,11 @@ export function tryApplyMove(
   state: GameState,
   intent: MoveIntent,
 ): ApplyResult {
+  // No plays while paused — the UI also locks input, this is the
+  // defense-in-depth check so programmatic flows can't sneak a move through.
+  if (state.status === "paused") {
+    return { ok: false, reason: "paused" };
+  }
   switch (intent.kind) {
     case "draw":
       return drawFromStock(state);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useGameStore } from "@/lib/store/gameStore";
 import type { DealType, ThemeId } from "@/lib/game/types";
 import { THEME_LABELS, THEMES } from "@/lib/theme/themes";
@@ -43,10 +44,17 @@ export function NewGameButton({
   onAfterStart,
   fullWidth,
 }: Props) {
+  // Consolidated settings read; the dropdown re-renders only when one of
+  // these four fields changes, not on every game-state update.
+  const { drawMode, dealType, themeId, redealLimit } = useGameStore(
+    useShallow((s) => ({
+      drawMode: s.settings.drawMode,
+      dealType: s.settings.dealType,
+      themeId: s.settings.theme,
+      redealLimit: s.settings.redealLimit,
+    })),
+  );
   const newGame = useGameStore((s) => s.newGame);
-  const drawMode = useGameStore((s) => s.settings.drawMode);
-  const dealType = useGameStore((s) => s.settings.dealType);
-  const themeId = useGameStore((s) => s.settings.theme);
   const updateSettings = useGameStore((s) => s.updateSettings);
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -159,6 +167,36 @@ export function NewGameButton({
                 </span>
               )}
             </button>
+          </div>
+
+          <div className="border-t border-[var(--color-dropdown-border)] py-1">
+            <div className="px-4 py-1.5 text-[var(--color-dropdown-subtext)] text-xs font-medium uppercase tracking-wider">
+              Redeals
+            </div>
+            {(
+              [
+                { value: null, label: "Unbegrenzt" },
+                { value: 2, label: "2 (klassisch)" },
+                { value: 1, label: "1" },
+                { value: 0, label: "Kein Redeal (Vegas)" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={String(opt.value)}
+                onClick={() => {
+                  updateSettings({ redealLimit: opt.value });
+                  setMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-2 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
+              >
+                <span>{opt.label}</span>
+                {redealLimit === opt.value && (
+                  <span className="text-[var(--color-active)] text-xs font-bold">
+                    aktiv
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
 
           <div className="border-t border-[var(--color-dropdown-border)] py-1">

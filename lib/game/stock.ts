@@ -44,6 +44,9 @@ export function recycleWaste(state: GameState): ApplyResult {
   if (state.waste.cards.length === 0) {
     return { ok: false, reason: "waste-empty" };
   }
+  if (state.redealLimit !== null && state.stockCycles >= state.redealLimit) {
+    return { ok: false, reason: "redeal-limit-reached" };
+  }
   // Reverse waste so the original top of waste ends up at the bottom of stock.
   const newStockCards: Card[] = state.waste.cards
     .slice()

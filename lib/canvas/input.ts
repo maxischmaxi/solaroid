@@ -10,6 +10,10 @@ import type { Card, CardId, GameState, PileId } from "@/lib/game/types";
 
 const DRAG_THRESHOLD_PX = 6;
 const TOUCH_ACTIVATION_MS = 120;
+// Max gap between two consecutive taps to count as a double-tap. The browser
+// default is ~500ms but that feels sluggish for a game; 350ms keeps fast
+// single-clicks responsive while still catching deliberate double-taps.
+const DOUBLE_CLICK_MS = 350;
 
 export interface InputCallbacks {
   /** Latest layout — re-queried on every event so resizes don't stale. */
@@ -20,6 +24,13 @@ export interface InputCallbacks {
   onClickStock(): void;
   /** Face-up card clicked (no drag): auto-move to best destination. */
   onClickCard(source: DragSource, cardId: CardId): void;
+  /**
+   * Second click on the same pile within DOUBLE_CLICK_MS. The host should
+   * force-send the pile's top card to its foundation (even if the single-click
+   * would have picked a tableau target). Use to split a run or commit a
+   * foundation move from anywhere in the stack.
+   */
+  onDoubleClickCard?(source: DragSource, cardId: CardId): void;
   /** Drag completed over a valid pile target: dispatch the move. */
   onDrop(source: DragSource, target: PileId, cardId: CardId): void;
   /** Drag state changed (started, moved, or ended). null = no drag. */
@@ -56,6 +67,10 @@ export function attachInput(
 ): () => void {
   let state: State = { kind: "idle" };
   let lastHoveredPile: PileId | null = null;
+  // Tracks the most recent card-click so the next click can be classified
+  // as a double-tap. Cleared after a drag, a stock click, or a successful
+  // double-tap to prevent triple-tap compounding.
+  let lastCardClick: { pileId: PileId; t: number } | null = null;
 
   const localPoint = (e: PointerEvent): Point => {
     const rect = canvas.getBoundingClientRect();
@@ -181,11 +196,23 @@ export function attachInput(
     if (state.kind === "pressed") {
       // No drag occurred → treat as click.
       const target = state.target;
+      const now = e.timeStamp || performance.now();
       state = { kind: "idle" };
       if (target.kind === "pile" && target.pileId === "stock") {
+        lastCardClick = null;
         cb.onClickStock();
       } else if (target.kind === "card") {
-        cb.onClickCard({ pileId: target.pileId }, target.cardId);
+        const isDouble =
+          lastCardClick !== null &&
+          lastCardClick.pileId === target.pileId &&
+          now - lastCardClick.t < DOUBLE_CLICK_MS;
+        if (isDouble && cb.onDoubleClickCard) {
+          lastCardClick = null;
+          cb.onDoubleClickCard({ pileId: target.pileId }, target.cardId);
+        } else {
+          lastCardClick = { pileId: target.pileId, t: now };
+          cb.onClickCard({ pileId: target.pileId }, target.cardId);
+        }
       }
       return;
     }
@@ -198,6 +225,8 @@ export function attachInput(
       const droppedCard = state.cards[0];
       state = { kind: "idle" };
       lastHoveredPile = null;
+      // A drag breaks any pending double-tap sequence.
+      lastCardClick = null;
       cb.onHoverChange(null);
       cb.onDragStateChange(null);
       if (target && droppedCard) {

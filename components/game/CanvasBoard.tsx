@@ -9,7 +9,7 @@ import { reducedMotion } from "@/lib/canvas/reducedMotion";
 import { renderScene } from "@/lib/canvas/renderer";
 import { createScheduler } from "@/lib/canvas/scheduler";
 import {
-  buildSprites,
+  ensureSpriteCache,
   spriteLogicalSize,
   spriteMargin,
   type SpriteCache,
@@ -17,7 +17,7 @@ import {
 import type { WinFinaleParticle } from "@/lib/canvas/winFinale";
 import type { DragState, HintScene, Layout, Rect } from "@/lib/canvas/types";
 import { WinFinale } from "@/lib/canvas/winFinale";
-import type { CardId, GameState, PileId } from "@/lib/game/types";
+import type { CardId, GameState, PileId, ThemeId } from "@/lib/game/types";
 import { setActiveTheme } from "@/lib/theme/activeTheme";
 import { THEMES } from "@/lib/theme/themes";
 import type { ActiveHint } from "@/lib/store/gameStore";
@@ -62,6 +62,9 @@ export function CanvasBoard() {
 
     let layout: Layout | null = null;
     let sprites: SpriteCache | null = null;
+    // Keyed by themeId so toggling between themes doesn't rebuild 56 sprites
+    // on every switch. Geometry changes (cardW, dpr) invalidate the whole map.
+    const spriteCache = new Map<ThemeId, SpriteCache>();
     let drag: DragState | null = null;
     let hovered: PileId | null = null;
     let loopRunning = false;
@@ -105,15 +108,13 @@ export function CanvasBoard() {
       const themeId = state.settings.theme;
       setActiveTheme(THEMES[themeId]);
       layout = computeLayout(game, w, h, game.drawMode);
-      // Rebuild sprites whenever cardW, dpr, or theme changes.
-      if (
-        !sprites ||
-        Math.abs(sprites.cardW - layout.cardW) > 0.5 ||
-        sprites.dpr !== dpr ||
-        sprites.themeId !== themeId
-      ) {
-        sprites = buildSprites(layout.cardW, layout.cardH, dpr, themeId);
-      }
+      sprites = ensureSpriteCache(
+        spriteCache,
+        layout.cardW,
+        layout.cardH,
+        dpr,
+        themeId,
+      );
       requestDraw();
     };
 
@@ -289,12 +290,15 @@ export function CanvasBoard() {
     const unsubTheme = useGameStore.subscribe((s, prev) => {
       if (s.settings.theme === prev.settings.theme) return;
       setActiveTheme(THEMES[s.settings.theme]);
-      sprites = buildSprites(
-        layout!.cardW,
-        layout!.cardH,
-        dpr,
-        s.settings.theme,
-      );
+      if (layout) {
+        sprites = ensureSpriteCache(
+          spriteCache,
+          layout.cardW,
+          layout.cardH,
+          dpr,
+          s.settings.theme,
+        );
+      }
       requestDraw();
     });
 
@@ -319,6 +323,15 @@ export function CanvasBoard() {
           from: source.pileId,
           to: target,
           cardId,
+        });
+      },
+      onDoubleClickCard: (source) => {
+        // Force the pile's top card to its foundation, bypassing the
+        // single-click heuristic that prefers tableau moves for runs. A
+        // no-op if the top isn't a legal foundation play.
+        useGameStore.getState().dispatchMove({
+          kind: "autoMoveToFoundation",
+          from: source.pileId,
         });
       },
       onDrop: (source, target, cardId) => {
@@ -461,16 +474,6 @@ function pileBoxRect(layout: Layout, pileId: PileId): Rect | null {
   return { x: pile.x, y: pile.y, w: pile.w, h: pile.h };
 }
 
-function findCardRect(layout: Layout, cardId: CardId): Rect | null {
-  const idx = layout.cardIndex[cardId];
-  if (!idx) return null;
-  const pile = layout.piles[idx.pileId];
-  if (!pile) return null;
-  const c = pile.cards[idx.indexInPile];
-  if (!c) return null;
-  return { x: c.x, y: c.y, w: c.w, h: c.h };
-}
-
 /** Where the next card placed onto `target` would land. */
 function nextCardSlot(layout: Layout, targetId: PileId): Rect | null {
   const pile = layout.piles[targetId];
@@ -504,11 +507,40 @@ function computeHintScene(
     return { kind: "stock", action: active.hint.action, target, pulse, draws: active.hint.draws };
   }
 
-  // Move hint: source is the card's current rect, dest is the next slot on
-  // the destination pile.
-  const from = findCardRect(layout, active.hint.cardId);
-  const to = nextCardSlot(layout, active.hint.to);
-  if (!from || !to) return undefined;
+  // Move hint: the hinted card is the BOTTOM of a run. Walk up the source
+  // pile to collect every face-up card on top, so tableau-run moves (e.g.
+  // 8♠ 7♥ 6♣ dragged as a group) preview the full stack instead of just one.
+  const idx = layout.cardIndex[active.hint.cardId];
+  if (!idx) return undefined;
+  const fromPile = layout.piles[idx.pileId];
+  if (!fromPile) return undefined;
+  const anchor = fromPile.cards[idx.indexInPile];
+  if (!anchor) return undefined;
+
+  const runCards: { cardId: CardId; x: number; y: number; w: number; h: number }[] = [];
+  if (fromPile.kind === "tableau") {
+    for (let i = idx.indexInPile; i < fromPile.cards.length; i++) {
+      const c = fromPile.cards[i];
+      if (!c.faceUp) break;
+      runCards.push(c);
+    }
+  } else {
+    runCards.push(anchor);
+  }
+  const last = runCards[runCards.length - 1];
+  const from: Rect = {
+    x: anchor.x,
+    y: anchor.y,
+    w: anchor.w,
+    h: last.y + last.h - anchor.y,
+  };
+
+  const slot = nextCardSlot(layout, active.hint.to);
+  if (!slot) return undefined;
+  // Expand the destination rect downwards by the remaining run height so the
+  // player sees where the entire stack will land, not just the bottom card.
+  const extraStack = (runCards.length - 1) * layout.fanDown;
+  const to: Rect = { x: slot.x, y: slot.y, w: slot.w, h: slot.h + extraStack };
 
   // Triangle wave 0..1..0 over HINT_GHOST_PERIOD_MS, eased.
   const phase = (elapsed % HINT_GHOST_PERIOD_MS) / HINT_GHOST_PERIOD_MS;
@@ -518,11 +550,11 @@ function computeHintScene(
 
   return {
     kind: "move",
-    cardId: active.hint.cardId,
+    cardIds: runCards.map((c) => c.cardId),
     from,
     to,
-    ghostX: from.x + (to.x - from.x) * t,
-    ghostY: from.y + (to.y - from.y) * t,
+    ghostX: anchor.x + (slot.x - anchor.x) * t,
+    ghostY: anchor.y + (slot.y - anchor.y) * t,
     pulse,
   };
 }

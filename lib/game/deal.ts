@@ -15,6 +15,7 @@ function makePile(id: Pile["id"], kind: Pile["kind"], cards: Card[]): Pile {
 export function dealKlondike(
   seed: string = randomSeed(),
   drawMode: DrawMode = 1,
+  redealLimit: number | null = null,
 ): GameState {
   const rand = mulberry32(seedFromString(seed));
   const shuffled = shuffle(createDeck(), rand);
@@ -49,7 +50,9 @@ export function dealKlondike(
     moveCount: 0,
     score: 0,
     startedAt: null,
+    accumulatedMs: 0,
     status: "idle",
     seed,
+    redealLimit,
   };
 }

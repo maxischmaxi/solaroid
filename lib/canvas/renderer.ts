@@ -209,13 +209,15 @@ function drawHintLayer(
     drawDrawsBadge(ctx, hint.target, hint.draws, layout.cardW);
     return;
   }
-  // move: ring on source, ring on destination, ghost card sliding between.
+  // move: ring on source, ring on destination, ghost stack sliding between.
   drawHintRing(ctx, hint.from, radius, hint.pulse);
   drawHintRing(ctx, hint.to, radius, hint.pulse);
-  const sprite = sprites.faces.get(hint.cardId) ?? sprites.back;
   ctx.save();
   ctx.globalAlpha = getActiveTheme().board.hintGhostAlpha;
-  blitSprite(ctx, sprite, hint.ghostX, hint.ghostY);
+  for (let i = 0; i < hint.cardIds.length; i++) {
+    const sprite = sprites.faces.get(hint.cardIds[i]) ?? sprites.back;
+    blitSprite(ctx, sprite, hint.ghostX, hint.ghostY + i * layout.fanDown);
+  }
   ctx.restore();
 }
 

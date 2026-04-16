@@ -148,12 +148,17 @@ export interface WinFinaleScene {
 export type HintScene =
   | {
       kind: "move";
-      cardId: CardId;
-      /** Source rect (where the hinted card currently sits). */
+      /**
+       * Bottom-to-top list of cards being hinted. Has a single element for
+       * most moves; a multi-card tableau run contributes the full face-up
+       * stack so the source and ghost can preview the whole move.
+       */
+      cardIds: readonly CardId[];
+      /** Source rect, expanded to cover the full run when applicable. */
       from: Rect;
-      /** Destination rect (where the next card slot is on the target pile). */
+      /** Destination rect, expanded so the whole run's landing area is visible. */
       to: Rect;
-      /** Interpolated ghost-card position for the current frame. */
+      /** Interpolated bottom-card position for the current frame. */
       ghostX: number;
       ghostY: number;
       /** Pulse alpha 0..1 for both rings. */

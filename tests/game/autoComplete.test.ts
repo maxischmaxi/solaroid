@@ -42,8 +42,10 @@ function buildAutoCompleteScenario(): GameState {
     moveCount: 0,
     score: 0,
     startedAt: null,
+    accumulatedMs: 0,
     status: "playing",
     seed: "test",
+    redealLimit: null,
   };
 }
 

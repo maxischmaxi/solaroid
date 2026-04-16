@@ -124,9 +124,13 @@ function countClicksToPlayable(state: GameState): number {
   // Safety: at most one full pass through stock + one recycle + one more pass.
   const maxClicks = stockCards.length + wasteCards.length + 2;
 
+  // If the game is already at its redeal limit we can't simulate a recycle.
+  const canRecycle =
+    state.redealLimit === null || state.stockCycles < state.redealLimit;
+
   while (clicks < maxClicks) {
     if (stockCards.length === 0) {
-      if (wasteCards.length === 0 || recycled) break;
+      if (wasteCards.length === 0 || recycled || !canRecycle) break;
       // Recycle: waste reverses into stock.
       stockCards = wasteCards.slice().reverse();
       wasteCards = [];

@@ -1,5 +1,16 @@
 // localStorage persistence for settings, stats, and current game.
-// All loads return defaults on first run / parse failure / SSR.
+//
+// Every persisted value is stored as `{ version: N, data: T }`. Reads run
+// the raw payload through a *migration chain* — an ordered list of pure
+// upgrade functions keyed by the source version — before handing it to a
+// validator that coerces the result into the current shape (or rejects it,
+// in which case the caller gets defaults).
+//
+// Adding a new field with a safe default does NOT require a version bump;
+// the validator's spread-merge fills it in automatically. Bump the version
+// when a change is *semantically incompatible* — field renames, shape
+// changes, unit changes, etc. — and register a migrator so existing saves
+// survive the upgrade instead of silently reverting to defaults.
 
 import type { DealType, DrawMode, GameState, ThemeId } from "@/lib/game/types";
 
@@ -12,6 +23,9 @@ export interface Settings {
   autoCompleteEnabled: boolean;
   dealType: DealType;
   theme: ThemeId;
+  // Recycles allowed per game. `null` = unlimited. Common presets: 0 (Vegas,
+  // single pass), 2 (classic Klondike, 3 passes), null (Microsoft, unlimited).
+  redealLimit: number | null;
 }
 
 export interface Stats {
@@ -33,6 +47,7 @@ export const defaultSettings: Settings = {
   autoCompleteEnabled: true,
   theme: "classic",
   dealType: "random",
+  redealLimit: null,
 };
 
 export const defaultStats: Stats = {
@@ -48,59 +63,174 @@ function isBrowser(): boolean {
   return typeof window !== "undefined" && typeof localStorage !== "undefined";
 }
 
-function safeParse<T>(raw: string | null): T | null {
+function isPlainObject(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null && !Array.isArray(x);
+}
+
+/* ---------- Versioned-payload plumbing ---------- */
+
+/** Migrates data from version N to N+1. May throw; caller catches. */
+type Migrator = (old: unknown) => unknown;
+
+interface VersionedConfig<T> {
+  currentVersion: number;
+  /** Migrations[i] upgrades version `i` → `i+1`. Must cover [1..currentVersion-1]. */
+  migrations: Readonly<Record<number, Migrator>>;
+  /** Final validator: coerce arbitrary data into T, or reject with null. */
+  validate: (data: unknown) => T | null;
+}
+
+/**
+ * Pure migration+validation pipeline. Exported so the test suite can exercise
+ * migrator chains without touching localStorage.
+ *
+ * Returns the validated T on success, or null if:
+ *  * the payload doesn't have a numeric version,
+ *  * the version is newer than we understand,
+ *  * any registered migrator throws,
+ *  * a needed migrator is missing,
+ *  * the validator rejects the result.
+ */
+export function migrateAndValidate<T>(
+  rawVersion: unknown,
+  rawData: unknown,
+  config: VersionedConfig<T>,
+): T | null {
+  if (typeof rawVersion !== "number" || !Number.isFinite(rawVersion)) return null;
+  // Refuse to downgrade: a newer app wrote this and we don't know how to
+  // interpret its shape. Caller falls back to defaults — better than
+  // mangling the future-self's data.
+  if (rawVersion > config.currentVersion) return null;
+
+  let version = rawVersion;
+  let data = rawData;
+  while (version < config.currentVersion) {
+    const migrate = config.migrations[version];
+    if (!migrate) return null;
+    try {
+      data = migrate(data);
+    } catch {
+      return null;
+    }
+    version++;
+  }
+  return config.validate(data);
+}
+
+function loadVersioned<T>(
+  key: string,
+  config: VersionedConfig<T>,
+): T | null {
+  if (!isBrowser()) return null;
+  const raw = localStorage.getItem(key);
   if (raw === null) return null;
+  let parsed: unknown;
   try {
-    return JSON.parse(raw) as T;
+    parsed = JSON.parse(raw);
   } catch {
     return null;
   }
+  if (!isPlainObject(parsed)) return null;
+  return migrateAndValidate(parsed.version, parsed.data, config);
 }
 
-interface Versioned<T> {
-  version: 1;
-  data: T;
-}
-
-function read<T>(key: string): T | null {
-  if (!isBrowser()) return null;
-  const wrapper = safeParse<Versioned<T>>(localStorage.getItem(key));
-  if (!wrapper || wrapper.version !== 1) return null;
-  return wrapper.data;
-}
-
-function write<T>(key: string, data: T): void {
+function saveVersioned<T>(
+  key: string,
+  version: number,
+  data: T,
+): void {
   if (!isBrowser()) return;
   try {
-    const wrapper: Versioned<T> = { version: 1, data };
-    localStorage.setItem(key, JSON.stringify(wrapper));
+    localStorage.setItem(key, JSON.stringify({ version, data }));
   } catch {
     // Quota exceeded or storage disabled — silently no-op.
   }
 }
 
+/* ---------- Settings ---------- */
+
+export const settingsConfig: VersionedConfig<Settings> = {
+  currentVersion: 1,
+  // No migrations needed yet. Example for a future v1 → v2 rename:
+  //   1: (old) => isPlainObject(old) && "autoCompleteEnabled" in old
+  //     ? { ...old, autoPlay: old.autoCompleteEnabled, autoCompleteEnabled: undefined }
+  //     : old,
+  migrations: {},
+  validate: (data) => {
+    if (!isPlainObject(data)) return null;
+    // Spread-merge tolerates extra/missing fields. Any new primitive field
+    // added to `defaultSettings` is picked up automatically without bumping
+    // the version; only semantic changes require a migrator.
+    return { ...defaultSettings, ...data } as Settings;
+  },
+};
+
 export function loadSettings(): Settings {
-  return { ...defaultSettings, ...(read<Settings>(SETTINGS_KEY) ?? {}) };
+  return loadVersioned(SETTINGS_KEY, settingsConfig) ?? defaultSettings;
 }
 
 export function saveSettings(s: Settings): void {
-  write(SETTINGS_KEY, s);
+  saveVersioned(SETTINGS_KEY, settingsConfig.currentVersion, s);
 }
 
+/* ---------- Stats ---------- */
+
+export const statsConfig: VersionedConfig<Stats> = {
+  currentVersion: 1,
+  migrations: {},
+  validate: (data) => {
+    if (!isPlainObject(data)) return null;
+    return { ...defaultStats, ...data } as Stats;
+  },
+};
+
 export function loadStats(): Stats {
-  return { ...defaultStats, ...(read<Stats>(STATS_KEY) ?? {}) };
+  return loadVersioned(STATS_KEY, statsConfig) ?? defaultStats;
 }
 
 export function saveStats(s: Stats): void {
-  write(STATS_KEY, s);
+  saveVersioned(STATS_KEY, statsConfig.currentVersion, s);
 }
 
+/* ---------- Current game ---------- */
+
+function normalizeGameState(g: unknown): GameState | null {
+  if (!isPlainObject(g)) return null;
+  // Tolerate saves written before `redealLimit` was introduced.
+  const withLimit =
+    "redealLimit" in g ? g : { ...g, redealLimit: null };
+  // Tolerate saves written before pause/accumulatedMs was introduced.
+  const withAccum =
+    "accumulatedMs" in withLimit
+      ? withLimit
+      : { ...withLimit, accumulatedMs: 0 };
+  return withAccum as unknown as GameState;
+}
+
+export const gameConfig: VersionedConfig<PersistedGame> = {
+  currentVersion: 1,
+  migrations: {},
+  validate: (data) => {
+    if (!isPlainObject(data)) return null;
+    const game = normalizeGameState(data.game);
+    if (!game) return null;
+    const rawHistory = Array.isArray(data.history) ? data.history : [];
+    const history: GameState[] = [];
+    for (const entry of rawHistory) {
+      const g = normalizeGameState(entry);
+      if (!g) return null;
+      history.push(g);
+    }
+    return { game, history };
+  },
+};
+
 export function loadCurrentGame(): PersistedGame | null {
-  return read<PersistedGame>(GAME_KEY);
+  return loadVersioned(GAME_KEY, gameConfig);
 }
 
 export function saveCurrentGame(game: GameState, history: GameState[]): void {
-  write(GAME_KEY, { game, history });
+  saveVersioned(GAME_KEY, gameConfig.currentVersion, { game, history });
 }
 
 export function clearCurrentGame(): void {

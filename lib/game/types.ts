@@ -39,7 +39,7 @@ export type DealType = "random" | "winnable" | "replay" | "daily";
 
 export type ThemeId = "classic" | "neon" | "vintage";
 
-export type GameStatus = "idle" | "playing" | "won";
+export type GameStatus = "idle" | "playing" | "paused" | "won";
 
 export interface GameState {
   readonly tableau: readonly [Pile, Pile, Pile, Pile, Pile, Pile, Pile];
@@ -50,9 +50,20 @@ export interface GameState {
   readonly stockCycles: number;
   readonly moveCount: number;
   readonly score: number;
+  /**
+   * Wall-clock millis when the CURRENT active session started. Null before
+   * the first move AND while paused. For elapsed time, always combine with
+   * `accumulatedMs` via `elapsedMs(game)` — never subtract startedAt alone.
+   */
   readonly startedAt: number | null;
+  /** Sum of all previously-completed play sessions (everything before the current). */
+  readonly accumulatedMs: number;
   readonly status: GameStatus;
   readonly seed: string;
+  // Maximum number of recycles allowed. `null` = unlimited. A value of N means
+  // the stock may be recycled N times (= N+1 passes through the deck). Baked
+  // into the game so mid-game settings changes don't retroactively break rules.
+  readonly redealLimit: number | null;
 }
 
 // What the UI dispatches. tryApplyMove translates this into a state transition.

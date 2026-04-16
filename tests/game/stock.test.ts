@@ -113,4 +113,34 @@ describe("recycleWaste", () => {
     state = ok(recycleWaste(state)).state;
     expect(state.score).toBe(scoreBefore - 20);
   });
+
+  it("rejects when the redeal limit is reached", () => {
+    // redealLimit = 2 → first two recycles allowed, third one blocked.
+    let state = dealKlondike("seed-1", 1, 2);
+    for (let cycle = 0; cycle < 2; cycle++) {
+      for (let i = 0; i < 24; i++) state = ok(drawFromStock(state)).state;
+      state = ok(recycleWaste(state)).state;
+    }
+    expect(state.stockCycles).toBe(2);
+    for (let i = 0; i < 24; i++) state = ok(drawFromStock(state)).state;
+    const res = recycleWaste(state);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("redeal-limit-reached");
+  });
+
+  it("blocks the very first recycle when redealLimit = 0 (Vegas)", () => {
+    let state = dealKlondike("seed-1", 1, 0);
+    for (let i = 0; i < 24; i++) state = ok(drawFromStock(state)).state;
+    const res = recycleWaste(state);
+    expect(res.ok).toBe(false);
+  });
+
+  it("allows unlimited recycles when redealLimit is null", () => {
+    let state = dealKlondike("seed-1", 1, null);
+    for (let cycle = 0; cycle < 5; cycle++) {
+      for (let i = 0; i < 24; i++) state = ok(drawFromStock(state)).state;
+      state = ok(recycleWaste(state)).state;
+    }
+    expect(state.stockCycles).toBe(5);
+  });
 });

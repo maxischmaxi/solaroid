@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useGameStore } from "@/lib/store/gameStore";
 import { NewGameButton } from "./NewGameButton";
 
@@ -16,16 +17,36 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenStats }: HeaderProps) {
-  const score = useGameStore((s) => s.game.score);
-  const moves = useGameStore((s) => s.game.moveCount);
-  const startedAt = useGameStore((s) => s.game.startedAt);
-  const status = useGameStore((s) => s.game.status);
-  const canUndo = useGameStore((s) => s.history.length > 0);
-  const canAutoComplete = useGameStore((s) => s.canAutoComplete());
+  // One subscription for the scalar values the header renders. `useShallow`
+  // prevents the object-literal selector from rebuilding the component on
+  // unrelated store changes — only field-level diffs count.
+  const {
+    score,
+    moves,
+    startedAt,
+    accumulatedMs,
+    status,
+    canUndo,
+    canAutoComplete,
+    drawMode,
+  } = useGameStore(
+    useShallow((s) => ({
+      score: s.game.score,
+      moves: s.game.moveCount,
+      startedAt: s.game.startedAt,
+      accumulatedMs: s.game.accumulatedMs,
+      status: s.game.status,
+      canUndo: s.history.length > 0,
+      canAutoComplete: s.canAutoComplete(),
+      drawMode: s.settings.drawMode,
+    })),
+  );
+  // Action references are stable for the store's lifetime, so individual
+  // selectors here don't trigger re-renders.
   const undo = useGameStore((s) => s.undo);
   const autoComplete = useGameStore((s) => s.autoComplete);
   const requestHint = useGameStore((s) => s.requestHint);
-  const drawMode = useGameStore((s) => s.settings.drawMode);
+  const togglePause = useGameStore((s) => s.togglePause);
 
   // Local timer tick — does NOT write to the store, only re-renders this component.
   const [now, setNow] = useState(() => Date.now());
@@ -35,7 +56,10 @@ export function Header({ onOpenStats }: HeaderProps) {
     return () => clearInterval(id);
   }, [startedAt, status]);
 
-  const elapsed = startedAt ? now - startedAt : 0;
+  const elapsed =
+    status === "playing" && startedAt !== null
+      ? accumulatedMs + Math.max(0, now - startedAt)
+      : accumulatedMs;
 
   return (
     <header className="flex items-center justify-between gap-2 px-3 py-2 text-white text-sm">
@@ -44,15 +68,28 @@ export function Header({ onOpenStats }: HeaderProps) {
         <button
           onClick={undo}
           disabled={!canUndo}
+          title="Undo (U oder Strg/Cmd+Z)"
+          aria-keyshortcuts="U Control+Z Meta+Z"
           className="rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)] disabled:opacity-50 px-3 py-1.5 font-medium shadow"
         >
           Undo
         </button>
         <button
           onClick={requestHint}
+          title="Tipp (H)"
+          aria-keyshortcuts="H"
           className="rounded bg-[var(--color-btn-hint)] hover:bg-[var(--color-btn-hint-hover)] active:bg-[var(--color-btn-hint-active)] px-3 py-1.5 font-medium shadow"
         >
           Tipp
+        </button>
+        <button
+          onClick={togglePause}
+          disabled={status !== "playing" && status !== "paused"}
+          title={status === "paused" ? "Fortsetzen (P)" : "Pause (P)"}
+          aria-keyshortcuts="P"
+          className="rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)] disabled:opacity-50 px-3 py-1.5 font-medium shadow"
+        >
+          {status === "paused" ? "Weiter" : "Pause"}
         </button>
         {canAutoComplete && (
           <button

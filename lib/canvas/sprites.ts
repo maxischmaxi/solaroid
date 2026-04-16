@@ -110,6 +110,40 @@ function makeSprite(
   return canvas;
 }
 
+/**
+ * Return a sprite cache for the given theme, reusing a previously-built cache
+ * when possible. The passed `cache` map is mutated:
+ *  - If any existing entry was built for a different cardW or dpr, the whole
+ *    map is cleared (every theme would need rebuilding for the new geometry
+ *    anyway — keeping stale large-size canvases around just wastes memory).
+ *  - If the requested themeId is already cached at the current geometry it is
+ *    returned as-is. Otherwise the sprites are built and stored for next time.
+ *
+ * Net effect: toggling between N themes at a fixed window size costs N full
+ * builds over the session instead of one per switch.
+ */
+export function ensureSpriteCache(
+  cache: Map<ThemeId, SpriteCache>,
+  cardW: number,
+  cardH: number,
+  dpr: number,
+  themeId: ThemeId,
+): SpriteCache {
+  const firstEntry = cache.values().next();
+  const first = firstEntry.done ? null : firstEntry.value;
+  if (
+    first &&
+    (Math.abs(first.cardW - cardW) > 0.5 || first.dpr !== dpr)
+  ) {
+    cache.clear();
+  }
+  const existing = cache.get(themeId);
+  if (existing) return existing;
+  const built = buildSprites(cardW, cardH, dpr, themeId);
+  cache.set(themeId, built);
+  return built;
+}
+
 /** Look up the visual margin baked into a sprite (for drawImage offset). */
 export function spriteMargin(sprite: HTMLCanvasElement): number {
   return (sprite as HTMLCanvasElement & SpriteMeta)._margin ?? 0;

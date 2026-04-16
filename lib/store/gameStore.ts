@@ -12,6 +12,7 @@ import { findHint, type Hint } from "@/lib/game/hints";
 import { canAutoComplete, isWon } from "@/lib/game/win";
 import { finalScore } from "@/lib/game/scoring";
 import { dailySeed, findWinnableSeed } from "@/lib/game/solve";
+import { elapsedMs, pauseGame, resumeGame } from "@/lib/game/time";
 import {
   Settings,
   Stats,
@@ -75,6 +76,9 @@ interface GameStore {
   drawFromStock: () => void;
   recycleWaste: () => void;
   undo: () => void;
+  pause: () => void;
+  resume: () => void;
+  togglePause: () => void;
   autoComplete: () => Promise<void>;
   finishWinFinale: () => void;
   requestHint: () => void;
@@ -110,6 +114,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   gameOverOpen: false,
 
   newGame: (opts) => {
+    // Capture the outgoing game BEFORE we overwrite state — starting a new
+    // deal while the previous one was still in progress (playing or paused)
+    // counts as abandoning it, which must break the win streak.
+    const prevStatus = get().game.status;
+    const abandonedInProgress =
+      prevStatus === "playing" || prevStatus === "paused";
+
     const drawMode = opts?.drawMode ?? get().settings.drawMode;
     const dealType = opts?.dealType ?? get().settings.dealType;
 
@@ -131,7 +142,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ settings: nextSettings });
     saveSettings(nextSettings);
 
-    const game = dealKlondike(seed, drawMode);
+    const game = dealKlondike(seed, drawMode, nextSettings.redealLimit);
     set({
       game,
       history: [],
@@ -143,9 +154,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     saveCurrentGame(game, []);
     // Increment gamesPlayed lazily — we count a game as played the first time
     // a player completes or abandons it. For simplicity, we count on newGame.
+    const prevStats = get().stats;
     const stats: Stats = {
-      ...get().stats,
-      gamesPlayed: get().stats.gamesPlayed + 1,
+      ...prevStats,
+      gamesPlayed: prevStats.gamesPlayed + 1,
+      currentStreak: abandonedInProgress ? 0 : prevStats.currentStreak,
     };
     set({ stats });
     saveStats(stats);
@@ -194,6 +207,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hint: null,
     });
     saveCurrentGame(prev, newHistory);
+  },
+
+  pause: () => {
+    const result = pauseGame(get().game, Date.now());
+    if (!result.ok) return;
+    set({ game: result.state, hint: null });
+    saveCurrentGame(result.state, get().history);
+  },
+
+  resume: () => {
+    const result = resumeGame(get().game, Date.now());
+    if (!result.ok) return;
+    // Clear any auto-complete failure that accumulated from an attempt
+    // during pause (where tryApplyMove would have rejected the move).
+    set({ game: result.state, autoCompleteFailed: false });
+    saveCurrentGame(result.state, get().history);
+  },
+
+  togglePause: () => {
+    const status = get().game.status;
+    if (status === "playing") get().pause();
+    else if (status === "paused") get().resume();
   },
 
   autoComplete: async () => {
@@ -307,7 +342,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       });
     } else {
       // No saved game → start a fresh one with the loaded drawMode.
-      const game = dealKlondike(undefined, settings.drawMode);
+      const game = dealKlondike(undefined, settings.drawMode, settings.redealLimit);
       set({
         game,
         history: [],
@@ -334,15 +369,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   _recordWin: () => {
     const game = get().game;
     if (game.status !== "won") return;
-    const elapsedMs = game.startedAt ? Date.now() - game.startedAt : 0;
-    const final = finalScore(game.score, elapsedMs);
+    const total = elapsedMs(game, Date.now());
+    const final = finalScore(game.score, total);
     const prev = get().stats;
     const stats: Stats = {
       ...prev,
       gamesWon: prev.gamesWon + 1,
       bestTimeMs:
-        prev.bestTimeMs === null || elapsedMs < prev.bestTimeMs
-          ? elapsedMs
+        prev.bestTimeMs === null || total < prev.bestTimeMs
+          ? total
           : prev.bestTimeMs,
       bestScore:
         prev.bestScore === null || final > prev.bestScore ? final : prev.bestScore,

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { PwaRegister } from "@/components/PwaRegister";
 
 const SITE_URL = "https://solaroid.de";
 
@@ -76,7 +77,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de" className="h-full antialiased" data-theme="classic">
-      <body className="min-h-dvh flex flex-col">{children}</body>
+      <body className="min-h-dvh flex flex-col">
+        {children}
+        <PwaRegister />
+      </body>
     </html>
   );
 }

@@ -2,11 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { useGameStore } from "@/lib/store/gameStore";
-import { Animator } from "@/lib/canvas/animator";
+import { Animator, easeOutCubic } from "@/lib/canvas/animator";
 import { attachInput } from "@/lib/canvas/input";
 import { computeLayout } from "@/lib/canvas/layout";
 import { reducedMotion } from "@/lib/canvas/reducedMotion";
 import { renderScene } from "@/lib/canvas/renderer";
+import type { DragFromOverrides } from "@/lib/canvas/scheduler";
 import { createScheduler } from "@/lib/canvas/scheduler";
 import {
   ensureSpriteCache,
@@ -69,6 +70,10 @@ export function CanvasBoard() {
     let hovered: PileId | null = null;
     let loopRunning = false;
     let dpr = window.devicePixelRatio || 1;
+    // Set in onDrop right before dispatchMove, consumed by the store
+    // subscription so the generic-move tweens start from where each card
+    // was released (pointer position) instead of the source pile.
+    let pendingDragOverrides: DragFromOverrides | null = null;
 
     const showOverlay = (): void => {
       overlayDpr = window.devicePixelRatio || 1;
@@ -225,7 +230,8 @@ export function CanvasBoard() {
       const w = container.clientWidth;
       const h = container.clientHeight;
       layout = computeLayout(s.game, w, h, s.game.drawMode);
-      scheduler.reconcile(s.game);
+      scheduler.reconcile(s.game, undefined, pendingDragOverrides);
+      pendingDragOverrides = null;
       requestDraw();
     });
 
@@ -334,13 +340,65 @@ export function CanvasBoard() {
           from: source.pileId,
         });
       },
-      onDrop: (source, target, cardId) => {
+      onDrop: (source, target, cardId, dragSnapshot) => {
+        // Capture each dragged card's on-screen position at release time so
+        // the scheduler starts their move tweens from the pointer instead of
+        // the source pile — avoids a visible "teleport back" on drop.
+        if (layout) {
+          const baseX = dragSnapshot.pt.x - dragSnapshot.grabOffset.x;
+          const baseY = dragSnapshot.pt.y - dragSnapshot.grabOffset.y;
+          const overrides = new Map<CardId, { x: number; y: number }>();
+          for (let i = 0; i < dragSnapshot.cards.length; i++) {
+            overrides.set(dragSnapshot.cards[i].id, {
+              x: baseX,
+              y: baseY + i * layout.fanDown,
+            });
+          }
+          pendingDragOverrides = overrides;
+        }
         useGameStore.getState().dispatchMove({
           kind: "move",
           from: source.pileId,
           to: target,
           cardId,
         });
+        // If dispatchMove was a no-op (e.g. rejected by the reducer), the
+        // subscription never fired. Clear to avoid applying stale overrides
+        // to a later unrelated reconcile.
+        pendingDragOverrides = null;
+      },
+      onDragCancel: (dragSnapshot) => {
+        // Invalid drop: animate the dragged cards back to their source pile
+        // instead of letting them teleport. The game state didn't change, so
+        // the layout still reflects the pre-drag positions.
+        if (!layout) return;
+        const pile = layout.piles[dragSnapshot.source.pileId];
+        if (!pile) return;
+        const baseX = dragSnapshot.pt.x - dragSnapshot.grabOffset.x;
+        const baseY = dragSnapshot.pt.y - dragSnapshot.grabOffset.y;
+        for (let i = 0; i < dragSnapshot.cards.length; i++) {
+          const card = dragSnapshot.cards[i];
+          const home = pile.cards.find((c) => c.cardId === card.id);
+          if (!home) continue;
+          animator.add({
+            id: card.id,
+            cardId: card.id,
+            kind: "snapback",
+            from: {
+              x: baseX,
+              y: baseY + i * layout.fanDown,
+              face: home.faceUp ? "up" : "down",
+            },
+            to: {
+              x: home.x,
+              y: home.y,
+              face: home.faceUp ? "up" : "down",
+            },
+            duration: 180,
+            easing: easeOutCubic,
+          });
+        }
+        requestDraw();
       },
       onDragStateChange: (next) => {
         drag = next;

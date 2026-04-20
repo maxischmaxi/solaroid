@@ -23,9 +23,22 @@ export interface SchedulerDeps {
   getBoardSize(): { w: number; h: number };
 }
 
+/**
+ * Per-card override for the `from` endpoint of generic move tweens. Used when
+ * a drag just ended: the dragged cards were visually at the pointer, not at
+ * their layout position in the source pile. Without the override, the tween
+ * would "teleport" the card back to the source pile before animating to the
+ * destination.
+ */
+export type DragFromOverrides = ReadonlyMap<CardId, { x: number; y: number }>;
+
 export interface Scheduler {
   /** Compute the new layout, diff against the previous, and queue tweens. */
-  reconcile(nextGame: GameState, hint?: SchedulerHint): void;
+  reconcile(
+    nextGame: GameState,
+    hint?: SchedulerHint,
+    dragOverrides?: DragFromOverrides | null,
+  ): void;
   /** Forget the previous layout. The next reconcile will not animate (used
    * after hydrating from localStorage so existing piles snap into place). */
   reset(): void;
@@ -39,7 +52,11 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
   let prev: Layout | null = null;
   let prevGame: GameState | null = null;
 
-  function reconcile(nextGame: GameState, hint?: SchedulerHint): void {
+  function reconcile(
+    nextGame: GameState,
+    hint?: SchedulerHint,
+    dragOverrides?: DragFromOverrides | null,
+  ): void {
     const { w, h } = deps.getBoardSize();
     const next = computeLayout(nextGame, w, h, nextGame.drawMode);
 
@@ -108,6 +125,10 @@ export function createScheduler(deps: SchedulerDeps): Scheduler {
 
     // Generic move (drag, click auto-move, undo, auto-complete step).
     for (const t of tweens) {
+      const override = dragOverrides?.get(t.cardId);
+      if (override) {
+        t.from = { x: override.x, y: override.y, face: t.from.face };
+      }
       t.duration = 220;
       t.easing = easeOutCubic;
       t.kind = "move";

@@ -31,8 +31,23 @@ export interface InputCallbacks {
    * foundation move from anywhere in the stack.
    */
   onDoubleClickCard?(source: DragSource, cardId: CardId): void;
-  /** Drag completed over a valid pile target: dispatch the move. */
-  onDrop(source: DragSource, target: PileId, cardId: CardId): void;
+  /**
+   * Drag completed over a valid pile target: dispatch the move. The final
+   * DragState is passed through so the host can capture per-card pointer
+   * positions for the incoming move animation (otherwise the tween would
+   * start at the source pile, not where the card was released).
+   */
+  onDrop(
+    source: DragSource,
+    target: PileId,
+    cardId: CardId,
+    drag: DragState,
+  ): void;
+  /**
+   * Drag ended without a valid drop target. The host should animate the
+   * dragged cards back to their source pile (snapback).
+   */
+  onDragCancel?(drag: DragState): void;
   /** Drag state changed (started, moved, or ended). null = no drag. */
   onDragStateChange(state: DragState | null): void;
   /** Hover target during drag changed. null = none. */
@@ -223,6 +238,15 @@ export function attachInput(
       const target = layout ? dropTest(layout, pt.x, pt.y) : null;
       const source = state.source;
       const droppedCard = state.cards[0];
+      // Capture the final DragState before clearing, so onDrop/onDragCancel
+      // can read the pointer position and grabbed cards.
+      const dragSnapshot: DragState = {
+        source: state.source,
+        cards: state.cards,
+        pt,
+        grabOffset: state.grabOffset,
+        cardIds: new Set(state.cards.map((c) => c.id)),
+      };
       state = { kind: "idle" };
       lastHoveredPile = null;
       // A drag breaks any pending double-tap sequence.
@@ -230,7 +254,9 @@ export function attachInput(
       cb.onHoverChange(null);
       cb.onDragStateChange(null);
       if (target && droppedCard) {
-        cb.onDrop(source, target, droppedCard.id);
+        cb.onDrop(source, target, droppedCard.id, dragSnapshot);
+      } else {
+        cb.onDragCancel?.(dragSnapshot);
       }
     }
   };

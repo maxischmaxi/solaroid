@@ -76,14 +76,26 @@ describe("redealLimit is baked into the new deal", () => {
 });
 
 describe("pause / resume via the store", () => {
-  it("pause is a no-op on an idle game (no first move yet)", () => {
+  it("pause is a no-op on an idle game (no first card moved yet)", () => {
     useGameStore.getState().pause();
     expect(useGameStore.getState().game.status).toBe("idle");
   });
 
-  it("pause after a move flips status and freezes startedAt", () => {
+  it("drawing from stock does not start the timer (still idle)", () => {
     useGameStore.getState().drawFromStock();
-    expect(useGameStore.getState().game.status).toBe("playing");
+    const game = useGameStore.getState().game;
+    expect(game.status).toBe("idle");
+    expect(game.startedAt).toBeNull();
+  });
+
+  it("pause after a real card move flips status and freezes startedAt", () => {
+    resetStore({
+      game: {
+        ...useGameStore.getState().game,
+        status: "playing",
+        startedAt: Date.now(),
+      },
+    });
     useGameStore.getState().pause();
     const game = useGameStore.getState().game;
     expect(game.status).toBe("paused");
@@ -92,7 +104,13 @@ describe("pause / resume via the store", () => {
   });
 
   it("togglePause cycles playing ↔ paused", () => {
-    useGameStore.getState().drawFromStock();
+    resetStore({
+      game: {
+        ...useGameStore.getState().game,
+        status: "playing",
+        startedAt: Date.now(),
+      },
+    });
     useGameStore.getState().togglePause();
     expect(useGameStore.getState().game.status).toBe("paused");
     useGameStore.getState().togglePause();
@@ -100,11 +118,16 @@ describe("pause / resume via the store", () => {
   });
 
   it("moves during pause are rejected by the store dispatcher", () => {
-    useGameStore.getState().drawFromStock();
+    resetStore({
+      game: {
+        ...useGameStore.getState().game,
+        status: "playing",
+        startedAt: Date.now(),
+      },
+    });
     useGameStore.getState().pause();
     const before = useGameStore.getState().game;
     useGameStore.getState().drawFromStock();
-    // Draw was rejected — state didn't change.
     expect(useGameStore.getState().game).toBe(before);
   });
 });

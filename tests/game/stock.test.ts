@@ -32,12 +32,12 @@ describe("drawFromStock — Draw 1", () => {
     expect(drawFromStock(state).ok).toBe(false);
   });
 
-  it("transitions status from idle to playing on first draw", () => {
+  it("does not start the timer on stock draw — only actual card moves start playing", () => {
     let state = dealKlondike("seed-1", 1);
     expect(state.status).toBe("idle");
     state = ok(drawFromStock(state)).state;
-    expect(state.status).toBe("playing");
-    expect(state.startedAt).toBeTypeOf("number");
+    expect(state.status).toBe("idle");
+    expect(state.startedAt).toBeNull();
   });
 });
 

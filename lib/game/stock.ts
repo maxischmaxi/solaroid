@@ -28,8 +28,6 @@ export function drawFromStock(state: GameState): ApplyResult {
     stock: nextStock,
     waste: nextWaste,
     moveCount: state.moveCount + 1,
-    startedAt: state.startedAt ?? Date.now(),
-    status: state.status === "idle" ? "playing" : state.status,
   };
   return { ok: true, state: next };
 }
@@ -60,8 +58,6 @@ export function recycleWaste(state: GameState): ApplyResult {
     stockCycles: state.stockCycles + 1,
     score: state.score + recyclePenalty(state.drawMode),
     moveCount: state.moveCount + 1,
-    startedAt: state.startedAt ?? Date.now(),
-    status: state.status === "idle" ? "playing" : state.status,
   };
   return { ok: true, state: next };
 }

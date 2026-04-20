@@ -212,10 +212,25 @@ export function attachInput(
       // No drag occurred → treat as click.
       const target = state.target;
       const now = e.timeStamp || performance.now();
+      const releasePt = localPoint(e);
       state = { kind: "idle" };
       if (target.kind === "pile" && target.pileId === "stock") {
         lastCardClick = null;
-        cb.onClickStock();
+        // Cancel the click if the pointer was dragged off the stock pile
+        // before release — lets the player back out of an unintended draw
+        // by holding and pulling the mouse away. Piles are click-only (no
+        // drag state), so this is the only escape hatch.
+        const layout = cb.getLayout();
+        const stockPile = layout?.piles["stock"];
+        const stillOverStock =
+          !!stockPile &&
+          releasePt.x >= stockPile.dropRect.x &&
+          releasePt.x < stockPile.dropRect.x + stockPile.dropRect.w &&
+          releasePt.y >= stockPile.dropRect.y &&
+          releasePt.y < stockPile.dropRect.y + stockPile.dropRect.h;
+        if (stillOverStock) {
+          cb.onClickStock();
+        }
       } else if (target.kind === "card") {
         const isDouble =
           lastCardClick !== null &&

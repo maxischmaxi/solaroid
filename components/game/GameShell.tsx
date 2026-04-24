@@ -20,6 +20,7 @@ export function GameShell() {
     winFinalePlaying,
     gameOverOpen,
     themeId,
+    autoPausedByVisibility,
   } = useGameStore(
     useShallow((s) => ({
       hydrated: s.hydrated,
@@ -29,9 +30,14 @@ export function GameShell() {
       winFinalePlaying: s.winFinalePlaying,
       gameOverOpen: s.gameOverOpen,
       themeId: s.settings.theme,
+      autoPausedByVisibility: s.autoPausedByVisibility,
     })),
   );
   const isPaused = gameStatus === "paused";
+  // Hide the Pause overlay while we're merely auto-paused for tab visibility —
+  // the user didn't choose to pause, so showing a full-board takeover on return
+  // would be jarring. Manual pauses still show the overlay normally.
+  const showPauseOverlay = isPaused && !autoPausedByVisibility;
   // Actions are stable references; individual selectors are cheap.
   const hydrate = useGameStore((s) => s.hydrate);
   const autoComplete = useGameStore((s) => s.autoComplete);
@@ -119,6 +125,37 @@ export function GameShell() {
     hydrate();
   }, [hydrate]);
 
+  // Pause the timer whenever the tab becomes hidden or the window loses focus,
+  // resume when it's both visible and focused again. Uses the dedicated
+  // autoPause/autoResume actions so manual pauses are never overridden.
+  useEffect(() => {
+    if (!hydrated) return;
+
+    const isActive = (): boolean =>
+      document.visibilityState === "visible" && document.hasFocus();
+
+    const sync = (): void => {
+      const store = useGameStore.getState();
+      if (isActive()) {
+        store.autoResume();
+      } else {
+        store.autoPause();
+      }
+    };
+
+    document.addEventListener("visibilitychange", sync);
+    window.addEventListener("blur", sync);
+    window.addEventListener("focus", sync);
+    // Run once in case we mounted while the tab was already backgrounded.
+    sync();
+
+    return () => {
+      document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener("blur", sync);
+      window.removeEventListener("focus", sync);
+    };
+  }, [hydrated]);
+
   // Sync data-theme attribute on <html> and update meta theme-color.
   useEffect(() => {
     document.documentElement.dataset.theme = themeId;
@@ -159,7 +196,7 @@ export function GameShell() {
       {hydrated ? (
         <div className="relative flex-1 flex flex-col">
           <CanvasBoard />
-          {isPaused && (
+          {showPauseOverlay && (
             <button
               type="button"
               aria-label="Spiel fortsetzen"

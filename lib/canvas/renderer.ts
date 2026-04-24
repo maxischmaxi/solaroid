@@ -115,23 +115,25 @@ function drawAllCards(
     // Stock and foundation only show the top card visually; tableau/waste
     // need every visible card painted bottom-up so the fan stacks correctly.
     if (pile.kind === "stock" || pile.kind === "foundation") {
-      // For foundations during the win finale we walk top→bottom and skip
-      // any card that's already been launched into the particle layer, so
-      // the next card "underneath" is exposed naturally.
+      // Foundations walk top→bottom skipping launched (win finale), dragged,
+      // and suppressed (mid-tween) cards, so the next card underneath stays
+      // visible — lifting the top card must not leave a ghostly empty slot.
       let top: typeof pile.cards[number] | null = null;
-      if (pile.kind === "foundation" && launchedIds && launchedIds.size > 0) {
+      if (pile.kind === "foundation") {
         for (let i = pile.cards.length - 1; i >= 0; i--) {
           const c = pile.cards[i];
-          if (!launchedIds.has(c.cardId)) {
-            top = c;
-            break;
-          }
+          if (launchedIds?.has(c.cardId)) continue;
+          if (dragIds?.has(c.cardId)) continue;
+          if (suppressIds.has(c.cardId)) continue;
+          top = c;
+          break;
         }
+        if (!top) continue;
       } else {
         top = pile.cards[pile.cards.length - 1] ?? null;
+        if (!top) continue;
+        if (suppressIds.has(top.cardId) || dragIds?.has(top.cardId)) continue;
       }
-      if (!top) continue;
-      if (suppressIds.has(top.cardId) || dragIds?.has(top.cardId)) continue;
       const sprite = top.faceUp
         ? sprites.faces.get(top.cardId) ?? sprites.back
         : sprites.back;

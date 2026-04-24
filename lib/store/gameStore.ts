@@ -66,6 +66,10 @@ interface GameStore {
   // Set when requestHint runs against a state with no possible move.
   // Drives the GameOverModal in GameShell.
   gameOverOpen: boolean;
+  // True when the timer was auto-paused because the tab lost visibility/focus.
+  // Keeps the manual "Pause" overlay hidden (the user didn't choose to pause)
+  // and gates autoResume so we only un-pause games we paused ourselves.
+  autoPausedByVisibility: boolean;
 
   newGame: (opts?: {
     seed?: string;
@@ -79,6 +83,8 @@ interface GameStore {
   pause: () => void;
   resume: () => void;
   togglePause: () => void;
+  autoPause: () => void;
+  autoResume: () => void;
   autoComplete: () => Promise<void>;
   finishWinFinale: () => void;
   requestHint: () => void;
@@ -112,6 +118,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   winFinalePlaying: false,
   hint: null,
   gameOverOpen: false,
+  autoPausedByVisibility: false,
 
   newGame: (opts) => {
     // Capture the outgoing game BEFORE we overwrite state — starting a new
@@ -212,7 +219,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   pause: () => {
     const result = pauseGame(get().game, Date.now());
     if (!result.ok) return;
-    set({ game: result.state, hint: null });
+    // A manual pause supersedes any auto-pause: once the user explicitly
+    // pauses, returning to the tab should NOT auto-resume behind their back.
+    set({ game: result.state, hint: null, autoPausedByVisibility: false });
     saveCurrentGame(result.state, get().history);
   },
 
@@ -221,7 +230,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!result.ok) return;
     // Clear any auto-complete failure that accumulated from an attempt
     // during pause (where tryApplyMove would have rejected the move).
-    set({ game: result.state, autoCompleteFailed: false });
+    set({
+      game: result.state,
+      autoCompleteFailed: false,
+      autoPausedByVisibility: false,
+    });
     saveCurrentGame(result.state, get().history);
   },
 
@@ -229,6 +242,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const status = get().game.status;
     if (status === "playing") get().pause();
     else if (status === "paused") get().resume();
+  },
+
+  autoPause: () => {
+    // Only pause if we haven't already auto-paused and the game is actively
+    // running. A manually-paused or finished game must not be touched.
+    if (get().autoPausedByVisibility) return;
+    if (get().game.status !== "playing") return;
+    const result = pauseGame(get().game, Date.now());
+    if (!result.ok) return;
+    set({
+      game: result.state,
+      hint: null,
+      autoPausedByVisibility: true,
+    });
+    saveCurrentGame(result.state, get().history);
+  },
+
+  autoResume: () => {
+    // Only un-pause games that WE auto-paused; never touch a manual pause.
+    if (!get().autoPausedByVisibility) return;
+    const result = resumeGame(get().game, Date.now());
+    if (!result.ok) {
+      // State drifted (e.g. newGame while hidden). Clear the flag so we don't
+      // get stuck thinking we own a pause that no longer exists.
+      set({ autoPausedByVisibility: false });
+      return;
+    }
+    set({
+      game: result.state,
+      autoCompleteFailed: false,
+      autoPausedByVisibility: false,
+    });
+    saveCurrentGame(result.state, get().history);
   },
 
   autoComplete: async () => {

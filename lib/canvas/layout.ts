@@ -6,26 +6,39 @@ import type { DrawMode, GameState, PileId } from "@/lib/game/types";
 import type { CardBox, Layout, PileBox, Rect } from "./types";
 
 const CARD_MAX = 92;
-const CARD_MIN = 38;
+// Lowered from 38 → 32 so 320px phones (after safe-area insets) still fit
+// the full 7-column tableau. The card art is built from path primitives, so
+// it scales cleanly down to ~30px without legibility loss.
+const CARD_MIN = 32;
 const ASPECT = 1.4; // h = w * 1.4
 const PILE_GAP_RATIO = 0.18;
 const FAN_DOWN_RATIO = 0.28;
 const WASTE_FAN_RATIO = 0.18;
 
+// Height divisor accounts for: top row (1×cardH) + tableauY gap (1.5×pileGap)
+// + tableau slot (1×cardH) + 8 face-up fanDown rows + 1×pileGap top padding.
+//   = 2.8 + 0.45 + 8×0.28 = 5.49 ≈ 5.5
+// Picked to keep a 9-card tableau (typical mid-game depth) fully visible on
+// short viewports without clipping the bottom card off the felt.
+const HEIGHT_DIVISOR = 5.5;
+
 /**
- * Compute card width given the board dimensions, mirroring the previous CSS:
- *   - portrait/desktop:  clamp(38, boardW / 8.44, 92)
- *   - landscape phones:  clamp(40, 0.11 * boardH, 80)
+ * Compute card width given the board dimensions:
+ *   - landscape phones:  clamp(40, 0.11 × boardH, 80)
+ *   - everything else:   clamp(32, min(boardW/8.44, boardH/5.5), 92)
  *
  * The 8.44 multiplier comes from 7 cards + 6 inter-gaps + 2 edge paddings of
- * 0.18 card-widths each (= 7 + 8 * 0.18).
+ * 0.18 card-widths each (= 7 + 8 × 0.18). The dual-axis clamp prevents
+ * tableau columns from overflowing when the viewport is narrow AND short.
  */
 export function computeCardWidth(boardW: number, boardH: number): number {
   if (boardH <= 560 && boardW > boardH) {
     // Landscape-short (phones held sideways): drive sizing from height.
     return clamp(40, 0.11 * boardH, 80);
   }
-  return clamp(CARD_MIN, boardW / 8.44, CARD_MAX);
+  const byWidth = boardW / 8.44;
+  const byHeight = boardH / HEIGHT_DIVISOR;
+  return clamp(CARD_MIN, Math.min(byWidth, byHeight), CARD_MAX);
 }
 
 function clamp(min: number, value: number, max: number): number {

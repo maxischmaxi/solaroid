@@ -8,12 +8,21 @@ import { dropTest, hitTest } from "./hitTest";
 import type { DragSource, DragState, HitTarget, Layout, Point } from "./types";
 import type { Card, CardId, GameState, PileId } from "@/lib/game/types";
 
-const DRAG_THRESHOLD_PX = 6;
+// Mouse pointers are precise — let drags trigger after only a few pixels.
+// Touch pointers are noisy (a thumb wobbles 3–8px even when the user means
+// "tap"); we wait until the pointer has clearly committed to a drag before
+// stealing the event from the click handler.
+const DRAG_THRESHOLD_MOUSE_PX = 4;
+const DRAG_THRESHOLD_TOUCH_PX = 10;
 const TOUCH_ACTIVATION_MS = 120;
 // Max gap between two consecutive taps to count as a double-tap. The browser
 // default is ~500ms but that feels sluggish for a game; 350ms keeps fast
 // single-clicks responsive while still catching deliberate double-taps.
 const DOUBLE_CLICK_MS = 350;
+// Pointer travel between two taps that we'll still treat as a double-tap.
+// On touch the second tap rarely lands exactly under the first, so we
+// tolerate ~one card width of drift before bailing out.
+const DOUBLE_CLICK_DIST_PX = 32;
 
 export interface InputCallbacks {
   /** Latest layout — re-queried on every event so resizes don't stale. */
@@ -85,7 +94,8 @@ export function attachInput(
   // Tracks the most recent card-click so the next click can be classified
   // as a double-tap. Cleared after a drag, a stock click, or a successful
   // double-tap to prevent triple-tap compounding.
-  let lastCardClick: { pileId: PileId; t: number } | null = null;
+  let lastCardClick: { pileId: PileId; t: number; x: number; y: number } | null =
+    null;
 
   const localPoint = (e: PointerEvent): Point => {
     const rect = canvas.getBoundingClientRect();
@@ -132,11 +142,16 @@ export function attachInput(
       const elapsed = (e.timeStamp || performance.now()) - state.startedAt;
       if (state.isTouch && elapsed < TOUCH_ACTIVATION_MS) return;
 
-      // Distance threshold to enter drag mode (cards only).
+      // Distance threshold to enter drag mode (cards only). Touch needs a
+      // larger threshold because finger jitter regularly produces 6–8px of
+      // travel during a stationary tap.
       const dx = pt.x - state.pt.x;
       const dy = pt.y - state.pt.y;
       const distance = Math.hypot(dx, dy);
-      if (distance < DRAG_THRESHOLD_PX) return;
+      const threshold = state.isTouch
+        ? DRAG_THRESHOLD_TOUCH_PX
+        : DRAG_THRESHOLD_MOUSE_PX;
+      if (distance < threshold) return;
 
       // Stock clicks never become drags — they're click-only.
       if (state.target.kind !== "card") return;
@@ -232,15 +247,24 @@ export function attachInput(
           cb.onClickStock();
         }
       } else if (target.kind === "card") {
+        const dx = lastCardClick ? releasePt.x - lastCardClick.x : Infinity;
+        const dy = lastCardClick ? releasePt.y - lastCardClick.y : Infinity;
+        const dist = Math.hypot(dx, dy);
         const isDouble =
           lastCardClick !== null &&
           lastCardClick.pileId === target.pileId &&
-          now - lastCardClick.t < DOUBLE_CLICK_MS;
+          now - lastCardClick.t < DOUBLE_CLICK_MS &&
+          dist < DOUBLE_CLICK_DIST_PX;
         if (isDouble && cb.onDoubleClickCard) {
           lastCardClick = null;
           cb.onDoubleClickCard({ pileId: target.pileId }, target.cardId);
         } else {
-          lastCardClick = { pileId: target.pileId, t: now };
+          lastCardClick = {
+            pileId: target.pileId,
+            t: now,
+            x: releasePt.x,
+            y: releasePt.y,
+          };
           cb.onClickCard({ pileId: target.pileId }, target.cardId);
         }
       }

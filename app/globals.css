@@ -107,6 +107,13 @@ body {
   height: 100%;
 }
 
+html {
+  /* Stop iOS Safari from auto-zooming into the layout when the on-screen
+     keyboard or address bar appears. Combined with viewport meta. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: var(--color-felt-dark);
   color: var(--foreground);
@@ -120,6 +127,39 @@ body {
     Arial,
     sans-serif;
   overscroll-behavior: none;
+  /* Stop the browser from drawing the dark grey rectangle on every tap on
+     iOS / Android Chrome — interactive elements style their own pressed state. */
+  -webkit-tap-highlight-color: transparent;
+  /* Disable text-selection callouts on long-press (iOS) — this is a game,
+     not a document. Forms inside modals re-enable it as needed. */
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Re-enable text selection where it actually helps the user. */
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Make every clickable control feel snappy on touch: skip the 300ms double-tap
+   delay and never show the iOS dark tap rectangle. */
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Canvas surface owns its own pointer handling — block all browser gestures
+   (scroll, pinch-zoom, swipe-to-back) so drag/drop is rock solid on touch. */
+canvas {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

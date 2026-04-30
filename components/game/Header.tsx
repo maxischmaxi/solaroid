@@ -16,10 +16,162 @@ interface HeaderProps {
   onOpenStats: () => void;
 }
 
+interface IconBtnProps {
+  onClick: () => void;
+  disabled?: boolean;
+  label: string;
+  shortcut?: string;
+  variant?: "secondary" | "hint" | "auto";
+  pulse?: boolean;
+  showLabelOnSm?: boolean;
+  children: React.ReactNode;
+}
+
+function IconBtn({
+  onClick,
+  disabled,
+  label,
+  shortcut,
+  variant = "secondary",
+  pulse,
+  showLabelOnSm = true,
+  children,
+}: IconBtnProps) {
+  const palette = {
+    secondary:
+      "bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)]",
+    hint: "bg-[var(--color-btn-hint)] hover:bg-[var(--color-btn-hint-hover)] active:bg-[var(--color-btn-hint-active)]",
+    auto: "bg-[var(--color-btn-hint)] hover:bg-[var(--color-btn-hint-hover)]",
+  }[variant];
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={shortcut ? `${label} (${shortcut})` : label}
+      aria-label={label}
+      aria-keyshortcuts={shortcut}
+      className={[
+        "inline-flex items-center justify-center gap-1.5",
+        // Touch-target floor: 40px tall, 40px wide on icon-only mobile state.
+        "min-h-10 min-w-10 px-2.5 sm:px-3 py-1.5",
+        "rounded font-medium shadow text-white",
+        "disabled:opacity-50 disabled:pointer-events-none",
+        palette,
+        pulse ? "animate-pulse" : "",
+      ].join(" ")}
+    >
+      <span aria-hidden="true" className="flex items-center justify-center">
+        {children}
+      </span>
+      {showLabelOnSm && (
+        <span className="hidden sm:inline text-sm">{label}</span>
+      )}
+    </button>
+  );
+}
+
+const ICON_CLASS = "w-4 h-4 sm:w-[18px] sm:h-[18px]";
+
+function UndoIcon() {
+  return (
+    <svg
+      className={ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 7v6h6" />
+      <path d="M3 13a9 9 0 1 0 3-7" />
+    </svg>
+  );
+}
+
+function HintIcon() {
+  return (
+    <svg
+      className={ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 18h6" />
+      <path d="M10 21h4" />
+      <path d="M12 3a6 6 0 0 0-4 10.5c.7.8 1 1.5 1 2.5v1h6v-1c0-1 .3-1.7 1-2.5A6 6 0 0 0 12 3Z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg
+      className={ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+    >
+      <rect x="6" y="5" width="4" height="14" rx="1" />
+      <rect x="14" y="5" width="4" height="14" rx="1" />
+    </svg>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg
+      className={ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+    >
+      <path d="M7 5.5v13a1 1 0 0 0 1.55.83l9.5-6.5a1 1 0 0 0 0-1.66l-9.5-6.5A1 1 0 0 0 7 5.5Z" />
+    </svg>
+  );
+}
+
+function AutoIcon() {
+  return (
+    <svg
+      className={ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 12l4 4 10-10" />
+      <path d="M5 19l4-4" />
+    </svg>
+  );
+}
+
+function StatsIcon() {
+  return (
+    <svg
+      className={ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 20V10" />
+      <path d="M10 20V4" />
+      <path d="M16 20v-6" />
+      <path d="M22 20H2" />
+    </svg>
+  );
+}
+
 export function Header({ onOpenStats }: HeaderProps) {
-  // One subscription for the scalar values the header renders. `useShallow`
-  // prevents the object-literal selector from rebuilding the component on
-  // unrelated store changes — only field-level diffs count.
   const {
     score,
     moves,
@@ -28,7 +180,6 @@ export function Header({ onOpenStats }: HeaderProps) {
     status,
     canUndo,
     canAutoComplete,
-    drawMode,
   } = useGameStore(
     useShallow((s) => ({
       score: s.game.score,
@@ -38,17 +189,14 @@ export function Header({ onOpenStats }: HeaderProps) {
       status: s.game.status,
       canUndo: s.history.length > 0,
       canAutoComplete: s.canAutoComplete(),
-      drawMode: s.settings.drawMode,
     })),
   );
-  // Action references are stable for the store's lifetime, so individual
-  // selectors here don't trigger re-renders.
+
   const undo = useGameStore((s) => s.undo);
   const autoComplete = useGameStore((s) => s.autoComplete);
   const requestHint = useGameStore((s) => s.requestHint);
   const togglePause = useGameStore((s) => s.togglePause);
 
-  // Local timer tick — does NOT write to the store, only re-renders this component.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!startedAt || status !== "playing") return;
@@ -60,72 +208,77 @@ export function Header({ onOpenStats }: HeaderProps) {
     status === "playing" && startedAt !== null
       ? accumulatedMs + Math.max(0, now - startedAt)
       : accumulatedMs;
+  const isPaused = status === "paused";
 
   return (
-    <header className="flex items-center justify-between gap-2 px-3 py-2 text-white text-sm">
-      <div className="flex items-center gap-3">
+    <header
+      className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 text-white"
+      style={{ minHeight: 56 }}
+    >
+      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
         <NewGameButton />
-        <button
+        <IconBtn
           onClick={undo}
           disabled={!canUndo}
-          title="Undo (U oder Strg/Cmd+Z)"
-          aria-keyshortcuts="U Control+Z Meta+Z"
-          className="rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)] disabled:opacity-50 px-3 py-1.5 font-medium shadow"
+          label="Undo"
+          shortcut="U"
         >
-          Undo
-        </button>
-        <button
+          <UndoIcon />
+        </IconBtn>
+        <IconBtn
           onClick={requestHint}
-          title="Tipp (H)"
-          aria-keyshortcuts="H"
-          className="rounded bg-[var(--color-btn-hint)] hover:bg-[var(--color-btn-hint-hover)] active:bg-[var(--color-btn-hint-active)] px-3 py-1.5 font-medium shadow"
+          label="Tipp"
+          shortcut="H"
+          variant="hint"
         >
-          Tipp
-        </button>
-        <button
+          <HintIcon />
+        </IconBtn>
+        <IconBtn
           onClick={togglePause}
           disabled={status !== "playing" && status !== "paused"}
-          title={status === "paused" ? "Fortsetzen (P)" : "Pause (P)"}
-          aria-keyshortcuts="P"
-          className="rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)] disabled:opacity-50 px-3 py-1.5 font-medium shadow"
+          label={isPaused ? "Weiter" : "Pause"}
+          shortcut="P"
         >
-          {status === "paused" ? "Weiter" : "Pause"}
-        </button>
+          {isPaused ? <PlayIcon /> : <PauseIcon />}
+        </IconBtn>
         {canAutoComplete && (
-          <button
+          <IconBtn
             onClick={() => autoComplete()}
-            className="rounded bg-[var(--color-btn-hint)] hover:bg-[var(--color-btn-hint-hover)] px-3 py-1.5 font-medium shadow animate-pulse"
+            label="Auto"
+            variant="auto"
+            pulse
           >
-            Auto-Complete
-          </button>
+            <AutoIcon />
+          </IconBtn>
         )}
       </div>
 
-      <div className="flex items-center gap-4 tabular-nums">
-        <div>
-          <span className="opacity-70 mr-1">Zeit</span>
+      {/* Spacer so the stats can flex-right while staying compact on phones. */}
+      <div className="flex-1" />
+
+      <div className="flex items-center gap-2 sm:gap-3 tabular-nums text-xs sm:text-sm">
+        <div className="flex items-baseline gap-1">
+          <span className="opacity-60">⏱</span>
           <span className="font-semibold">{formatTime(elapsed)}</span>
         </div>
-        <div>
-          <span className="opacity-70 mr-1">Punkte</span>
+        <div className="flex items-baseline gap-1">
+          <span className="opacity-60">★</span>
           <span className="font-semibold">{score}</span>
         </div>
-        <div className="hidden sm:block">
-          <span className="opacity-70 mr-1">Züge</span>
+        <div className="hidden sm:flex items-baseline gap-1">
+          <span className="opacity-60">Züge</span>
           <span className="font-semibold">{moves}</span>
         </div>
-        <div className="hidden md:block opacity-70">Draw {drawMode}</div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onOpenStats}
-          className="rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] px-3 py-1.5 shadow"
-          aria-label="Statistik"
-        >
-          📊
-        </button>
-      </div>
+      <button
+        onClick={onOpenStats}
+        aria-label="Statistik"
+        title="Statistik"
+        className="ml-1 sm:ml-2 inline-flex items-center justify-center min-h-10 min-w-10 px-2.5 sm:px-3 py-1.5 rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)] shadow text-white"
+      >
+        <StatsIcon />
+      </button>
     </header>
   );
 }

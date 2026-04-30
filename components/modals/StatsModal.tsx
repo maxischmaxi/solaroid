@@ -27,7 +27,7 @@ export function StatsModal({ open, onClose }: Props) {
 
   return (
     <Modal open={open} onClose={onClose} title="Statistik">
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
         <dt className="text-[var(--color-modal-subtext)]">Gespielt</dt>
         <dd className="text-right font-semibold">{stats.gamesPlayed}</dd>
         <dt className="text-[var(--color-modal-subtext)]">Gewonnen</dt>
@@ -47,14 +47,14 @@ export function StatsModal({ open, onClose }: Props) {
         <dt className="text-[var(--color-modal-subtext)]">Längste Serie</dt>
         <dd className="text-right font-semibold">{stats.longestStreak}</dd>
       </dl>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-5 flex justify-end">
         <button
           onClick={() => {
             if (confirm("Statistik wirklich zurücksetzen?")) {
               reset();
             }
           }}
-          className="text-xs text-rose-600 hover:underline"
+          className="inline-flex items-center justify-center min-h-10 px-3 py-2 text-sm rounded text-rose-600 hover:bg-rose-600/10 active:bg-rose-600/20 font-medium"
         >
           Statistik zurücksetzen
         </button>

@@ -67,7 +67,12 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0b6b3a",
+  // Match the felt under the safe-area notch so iOS doesn't draw a black band
+  // above the play area when the URL bar collapses.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0b6b3a" },
+    { media: "(prefers-color-scheme: dark)", color: "#064d27" },
+  ],
 };
 
 export default function RootLayout({

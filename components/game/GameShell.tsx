@@ -201,14 +201,17 @@ export function GameShell() {
               type="button"
               aria-label="Spiel fortsetzen"
               onClick={() => useGameStore.getState().resume()}
-              className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-black/55 backdrop-blur-sm text-white cursor-pointer"
+              className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 sm:gap-4 bg-black/55 backdrop-blur-sm text-white cursor-pointer px-6 text-center"
             >
-              <div className="text-4xl font-semibold tracking-wide">
+              <div className="text-3xl sm:text-4xl font-semibold tracking-wide">
                 Pause
               </div>
-              <div className="text-sm opacity-80">
-                Klicken oder <kbd className="font-mono">P</kbd> zum
-                Fortsetzen
+              <div className="text-sm opacity-80 max-w-xs">
+                <span className="hidden sm:inline">
+                  Klicken oder <kbd className="font-mono">P</kbd> zum
+                  Fortsetzen
+                </span>
+                <span className="sm:hidden">Tippen zum Fortsetzen</span>
               </div>
             </button>
           )}

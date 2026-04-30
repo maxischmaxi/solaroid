@@ -90,13 +90,13 @@ export function NewGameButton({
             newGame();
             onAfterStart?.();
           }}
-          className={`rounded-l bg-[var(--color-btn-primary)] hover:bg-[var(--color-btn-primary-hover)] active:bg-[var(--color-btn-primary-active)] px-3 py-1.5 font-medium shadow text-white ${fullWidth ? "flex-1 text-center" : ""}`}
+          className={`inline-flex items-center justify-center min-h-10 rounded-l bg-[var(--color-btn-primary)] hover:bg-[var(--color-btn-primary-hover)] active:bg-[var(--color-btn-primary-active)] px-3 py-1.5 text-sm font-medium shadow text-white ${fullWidth ? "flex-1 text-center" : ""}`}
         >
           {label}
         </button>
         <button
           onClick={() => setMenuOpen((o) => !o)}
-          className="rounded-r bg-[var(--color-btn-primary)] hover:bg-[var(--color-btn-primary-hover)] active:bg-[var(--color-btn-primary-active)] pl-1 pr-1.5 py-1.5 shadow border-l border-[var(--color-btn-primary-border)] text-white"
+          className="inline-flex items-center justify-center min-h-10 rounded-r bg-[var(--color-btn-primary)] hover:bg-[var(--color-btn-primary-hover)] active:bg-[var(--color-btn-primary-active)] px-2 py-1.5 shadow border-l border-[var(--color-btn-primary-border)] text-white"
           aria-label="Spieloptionen"
           aria-expanded={menuOpen}
         >
@@ -117,13 +117,16 @@ export function NewGameButton({
       </div>
 
       {menuOpen && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-56 rounded-lg bg-[var(--color-dropdown-bg)] border border-[var(--color-dropdown-border)] shadow-xl overflow-hidden text-sm text-white">
+        <div
+          className="absolute left-0 top-full mt-1 z-50 w-[min(16rem,calc(100vw-1rem))] max-h-[min(70vh,32rem)] overflow-y-auto rounded-lg bg-[var(--color-dropdown-bg)] border border-[var(--color-dropdown-border)] shadow-xl text-sm text-white"
+          role="menu"
+        >
           <div className="py-1">
             {(["random", "winnable", "daily"] as const).map((dt) => (
               <button
                 key={dt}
                 onClick={() => startGame(dt)}
-                className="w-full text-left px-4 py-2 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
+                className="w-full text-left px-4 py-2.5 min-h-11 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
               >
                 <span>{DEAL_TYPE_LABELS[dt]}</span>
                 {dealType === dt && (
@@ -135,7 +138,7 @@ export function NewGameButton({
             ))}
             <button
               onClick={() => startGame("replay")}
-              className="w-full text-left px-4 py-2 hover:bg-[var(--color-dropdown-hover)] transition-colors"
+              className="w-full text-left px-4 py-2.5 min-h-11 hover:bg-[var(--color-dropdown-hover)] transition-colors"
             >
               {DEAL_TYPE_LABELS.replay}
             </button>
@@ -147,7 +150,7 @@ export function NewGameButton({
             </div>
             <button
               onClick={() => startGame(dealType, 1)}
-              className="w-full text-left px-4 py-2 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
+              className="w-full text-left px-4 py-2.5 min-h-11 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
             >
               <span>1 Karte</span>
               {drawMode === 1 && (
@@ -158,7 +161,7 @@ export function NewGameButton({
             </button>
             <button
               onClick={() => startGame(dealType, 3)}
-              className="w-full text-left px-4 py-2 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
+              className="w-full text-left px-4 py-2.5 min-h-11 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
             >
               <span>3 Karten</span>
               {drawMode === 3 && (
@@ -187,7 +190,7 @@ export function NewGameButton({
                   updateSettings({ redealLimit: opt.value });
                   setMenuOpen(false);
                 }}
-                className="w-full text-left px-4 py-2 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
+                className="w-full text-left px-4 py-2.5 min-h-11 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
               >
                 <span>{opt.label}</span>
                 {redealLimit === opt.value && (
@@ -210,7 +213,7 @@ export function NewGameButton({
                   updateSettings({ theme: t });
                   setMenuOpen(false);
                 }}
-                className="w-full text-left px-4 py-2 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
+                className="w-full text-left px-4 py-2.5 min-h-11 hover:bg-[var(--color-dropdown-hover)] transition-colors flex items-center justify-between"
               >
                 <span className="flex items-center gap-2">
                   <ThemeSwatch themeId={t} />

@@ -26,7 +26,7 @@ export function GameOverModal({ open, onClose }: Props) {
               newGame();
               onClose();
             }}
-            className="w-full rounded bg-[var(--color-btn-primary)] hover:bg-[var(--color-btn-primary-hover)] text-white font-medium py-2"
+            className="w-full min-h-12 rounded bg-[var(--color-btn-primary)] hover:bg-[var(--color-btn-primary-hover)] active:bg-[var(--color-btn-primary-active)] text-white font-medium py-3"
           >
             Neues Spiel
           </button>
@@ -36,14 +36,14 @@ export function GameOverModal({ open, onClose }: Props) {
                 undo();
                 onClose();
               }}
-              className="w-full rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] text-white font-medium py-2"
+              className="w-full min-h-12 rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)] text-white font-medium py-3"
             >
               Letzten Zug zurücknehmen
             </button>
           )}
           <button
             onClick={onClose}
-            className="w-full rounded bg-[var(--color-btn-modal-secondary-bg)] hover:bg-[var(--color-btn-modal-secondary-hover)] text-[var(--color-btn-modal-secondary-text)] font-medium py-2"
+            className="w-full min-h-12 rounded bg-[var(--color-btn-modal-secondary-bg)] hover:bg-[var(--color-btn-modal-secondary-hover)] text-[var(--color-btn-modal-secondary-text)] font-medium py-3"
           >
             Schließen
           </button>

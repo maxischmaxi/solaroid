@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import confetti from "canvas-confetti";
 import { useGameStore } from "@/lib/store/gameStore";
+import { elapsedMs } from "@/lib/game/time";
 import { Modal } from "./Modal";
 import { NewGameButton } from "@/components/game/NewGameButton";
 
@@ -38,7 +39,11 @@ export function WinModal({ open, onClose }: Props) {
     return () => clearTimeout(t);
   }, [open]);
 
-  const elapsed = game.startedAt ? Date.now() - game.startedAt : 0;
+  // After tryApplyMove drains the running session on win, `accumulatedMs`
+  // holds the full play time and `startedAt` is null. Use elapsedMs() so
+  // both the drained-and-frozen win state and any (paused-style) edge case
+  // produce the same answer the stats dialog records.
+  const elapsed = elapsedMs(game, Date.now());
 
   return (
     <Modal open={open} onClose={onClose} title="Gewonnen!">

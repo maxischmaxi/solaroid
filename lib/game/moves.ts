@@ -77,6 +77,7 @@ function applyPileMove(
   from: PileId,
   to: PileId,
   cardId: CardId,
+  nowMs: number,
 ): ApplyResult {
   if (from === to) return { ok: false, reason: "same-pile" };
 
@@ -121,12 +122,25 @@ function applyPileMove(
     ...next,
     score: next.score + moveDelta + flipDelta,
     moveCount: next.moveCount + 1,
-    startedAt: next.startedAt ?? Date.now(),
+    startedAt: next.startedAt ?? nowMs,
     status: next.status === "idle" ? "playing" : next.status,
   };
 
   if (isWon(next)) {
-    next = { ...next, status: "won" };
+    // Drain the running session into the accumulator and freeze the timer
+    // before flipping to "won". Without this drain, elapsedMs() (which only
+    // counts a running session for status === "playing") would silently
+    // discard the time between the last resume and the winning move — the
+    // statistics dialog would then show 00:00 for an unbroken win, and the
+    // win modal would display a stale or zero time.
+    const sessionMs =
+      next.startedAt !== null ? Math.max(0, nowMs - next.startedAt) : 0;
+    next = {
+      ...next,
+      accumulatedMs: next.accumulatedMs + sessionMs,
+      startedAt: null,
+      status: "won",
+    };
   }
 
   return { ok: true, state: next };
@@ -151,9 +165,14 @@ function findBestFoundation(
 
 // Single entry point the UI calls. Returns a fully-resolved next state or a
 // reason string for why the move was rejected.
+//
+// `nowMs` is plumbed through so the timer-mutating branches (start of first
+// move, win-state drain) stay deterministic in tests. Defaults to Date.now()
+// for normal callers — the store doesn't pass a clock.
 export function tryApplyMove(
   state: GameState,
   intent: MoveIntent,
+  nowMs: number = Date.now(),
 ): ApplyResult {
   // No plays while paused — the UI also locks input, this is the
   // defense-in-depth check so programmatic flows can't sneak a move through.
@@ -166,7 +185,7 @@ export function tryApplyMove(
     case "recycle":
       return recycleWaste(state);
     case "move":
-      return applyPileMove(state, intent.from, intent.to, intent.cardId);
+      return applyPileMove(state, intent.from, intent.to, intent.cardId, nowMs);
     case "autoMoveToFoundation": {
       const source = getPile(state, intent.from);
       if (!source) return { ok: false, reason: "unknown-pile" };
@@ -174,7 +193,7 @@ export function tryApplyMove(
       if (!top) return { ok: false, reason: "empty-pile" };
       const target = findBestFoundation(state, top.id, intent.from);
       if (!target) return { ok: false, reason: "no-foundation" };
-      return applyPileMove(state, intent.from, target, top.id);
+      return applyPileMove(state, intent.from, target, top.id, nowMs);
     }
   }
 }

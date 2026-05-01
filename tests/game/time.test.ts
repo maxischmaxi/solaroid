@@ -76,6 +76,23 @@ describe("resumeGame", () => {
   });
 });
 
+describe("elapsedMs on a won state", () => {
+  it("returns the accumulator when the game ended (drained at win)", () => {
+    // A "won" state must have its session already drained — see
+    // applyPileMove's win-branch. Simulate that here: status = won,
+    // startedAt = null, accumulatedMs = total play time.
+    const t0 = 1_000_000;
+    const won: GameState = {
+      ...startedGame(t0),
+      status: "won",
+      startedAt: null,
+      accumulatedMs: 87_500,
+    };
+    expect(elapsedMs(won, t0 + 5_000)).toBe(87_500);
+    expect(elapsedMs(won, t0 + 1_000_000)).toBe(87_500);
+  });
+});
+
 describe("pause/resume roundtrip", () => {
   it("cumulative elapsed time adds across sessions", () => {
     const t0 = 1_000_000;

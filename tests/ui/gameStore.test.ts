@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { dealKlondike } from "@/lib/game/deal";
-import { defaultSettings, defaultStats } from "@/lib/persistence/storage";
+import { defaultSettings, defaultStats, freshStats } from "@/lib/persistence/storage";
 import { useGameStore } from "@/lib/store/gameStore";
 
 function resetStore(overrides: Partial<ReturnType<typeof useGameStore.getState>> = {}): void {
@@ -56,6 +56,74 @@ describe("streak accounting around newGame", () => {
     });
     useGameStore.getState().newGame();
     expect(useGameStore.getState().stats.currentStreak).toBe(4);
+  });
+});
+
+describe("stats history accounting", () => {
+  it("appends an abandoned-loss entry when a played game is replaced", () => {
+    resetStore({
+      game: {
+        ...useGameStore.getState().game,
+        status: "playing",
+        startedAt: Date.now() - 30_000,
+        accumulatedMs: 0,
+        moveCount: 5,
+        score: 25,
+      },
+      stats: freshStats(),
+    });
+    useGameStore.getState().newGame();
+    const stats = useGameStore.getState().stats;
+    expect(stats.history).toHaveLength(1);
+    expect(stats.history[0].won).toBe(false);
+    expect(stats.history[0].drawMode).toBe(1);
+    expect(stats.history[0].moves).toBe(5);
+    expect(stats.byMode[1].played).toBe(1);
+    expect(stats.byMode[1].won).toBe(0);
+    expect(stats.totalPlayTimeMs).toBeGreaterThan(0);
+  });
+
+  it("does NOT append a history entry for an idle game without moves", () => {
+    // Fresh deal with moveCount = 0 — user clicks "Neu" without playing.
+    resetStore({ stats: freshStats() });
+    useGameStore.getState().newGame();
+    expect(useGameStore.getState().stats.history).toHaveLength(0);
+    expect(useGameStore.getState().stats.byMode[1].played).toBe(0);
+  });
+
+  it("appends a win entry with finalScore including the time bonus", () => {
+    // Build a state where a single move into foundation completes the game.
+    // Mark it 'won' directly and trigger _recordWin; we don't need to
+    // re-test the win detection itself here.
+    const won = {
+      ...useGameStore.getState().game,
+      status: "won" as const,
+      drawMode: 3 as const,
+      startedAt: null,
+      accumulatedMs: 60_000,
+      moveCount: 80,
+      score: 350,
+    };
+    resetStore({
+      game: won,
+      stats: freshStats(),
+      settings: { ...defaultSettings, drawMode: 3, dealType: "winnable" },
+    });
+    // _recordWin is internal — invoke it via getState() to keep the test honest.
+    (useGameStore.getState() as unknown as {
+      _recordWin: () => void;
+    })._recordWin();
+    const stats = useGameStore.getState().stats;
+    expect(stats.history).toHaveLength(1);
+    expect(stats.history[0].won).toBe(true);
+    expect(stats.history[0].drawMode).toBe(3);
+    expect(stats.history[0].dealType).toBe("winnable");
+    expect(stats.history[0].durationMs).toBe(60_000);
+    expect(stats.history[0].finalScore).toBeGreaterThan(stats.history[0].score);
+    expect(stats.byMode[3].played).toBe(1);
+    expect(stats.byMode[3].won).toBe(1);
+    expect(stats.byMode[3].bestTimeMs).toBe(60_000);
+    expect(stats.byMode[1].played).toBe(0);
   });
 });
 

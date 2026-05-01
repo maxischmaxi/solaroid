@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useGameStore } from "@/lib/store/gameStore";
 import { NewGameButton } from "./NewGameButton";
+import { StatsButton } from "./StatsButton";
 
 function formatTime(ms: number): string {
   const sec = Math.max(0, Math.floor(ms / 1000));
@@ -136,37 +137,19 @@ function PlayIcon() {
 }
 
 function AutoIcon() {
+  // Fast-forward (▶▶) — semantically "play to the end", which is what
+  // auto-complete actually does. Two triangles read clearly at 16-18px even
+  // when the button is pulsing.
   return (
     <svg
       className={ICON_CLASS}
       viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      fill="currentColor"
+      stroke="none"
+      aria-hidden="true"
     >
-      <path d="M5 12l4 4 10-10" />
-      <path d="M5 19l4-4" />
-    </svg>
-  );
-}
-
-function StatsIcon() {
-  return (
-    <svg
-      className={ICON_CLASS}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 20V10" />
-      <path d="M10 20V4" />
-      <path d="M16 20v-6" />
-      <path d="M22 20H2" />
+      <polygon points="3,5 13,12 3,19" />
+      <polygon points="12,5 22,12 12,19" />
     </svg>
   );
 }
@@ -271,14 +254,7 @@ export function Header({ onOpenStats }: HeaderProps) {
         </div>
       </div>
 
-      <button
-        onClick={onOpenStats}
-        aria-label="Statistik"
-        title="Statistik"
-        className="ml-1 sm:ml-2 inline-flex items-center justify-center min-h-10 min-w-10 px-2.5 sm:px-3 py-1.5 rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)] shadow text-white"
-      >
-        <StatsIcon />
-      </button>
+      <StatsButton onClick={onOpenStats} />
     </header>
   );
 }

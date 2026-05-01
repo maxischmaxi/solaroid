@@ -432,9 +432,26 @@ export function CanvasBoard() {
     document.addEventListener("visibilitychange", onVisibility);
 
     // ----- Reduced-motion change -----
+    // System-level "Reduce motion" can flip mid-session. We keep three things
+    // honest in response: (1) the animator's per-tween durations, (2) any
+    // mid-flight win-finale cascade (skip straight to the win modal), and
+    // (3) all in-flight tweens (snap to their end state so cards land where
+    // they're supposed to land instead of finishing a slow tween at the old
+    // duration). The store's auto-complete delay re-reads the flag every
+    // step, so it picks up the change automatically.
     const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const onMotionChange = (): void => {
-      animator.setReducedMotion(motionMq.matches);
+      const reduced = motionMq.matches;
+      animator.setReducedMotion(reduced);
+      if (reduced) {
+        animator.skipToEnd();
+        if (winFinale.isActive) {
+          winFinale.stop();
+          hideOverlay();
+          useGameStore.getState().finishWinFinale();
+        }
+      }
+      requestDraw();
     };
     motionMq.addEventListener?.("change", onMotionChange);
 
@@ -555,9 +572,12 @@ function computeHintScene(
   reduced: boolean,
 ): HintScene | undefined {
   const elapsed = Date.now() - active.startedAt;
-  // Pulse 0..1 (sine) for both rings.
-  const pulse =
-    (Math.sin((elapsed / HINT_PULSE_PERIOD_MS) * Math.PI * 2) + 1) / 2;
+  // Pulse 0..1 (sine) for both rings. Reduced motion locks it at 0.7 — the
+  // brighter end of the range — so the hint is clearly visible without
+  // strobing, but still distinguishable from the ordinary drop-hover ring.
+  const pulse = reduced
+    ? 0.7
+    : (Math.sin((elapsed / HINT_PULSE_PERIOD_MS) * Math.PI * 2) + 1) / 2;
 
   if (active.hint.kind === "stock") {
     const target = pileBoxRect(layout, "stock");

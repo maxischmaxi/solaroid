@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { reducedMotion } from "@/lib/canvas/reducedMotion";
 import { dealKlondike } from "@/lib/game/deal";
 import {
   findBestDestination,
@@ -14,10 +15,13 @@ import { finalScore } from "@/lib/game/scoring";
 import { dailySeed, findWinnableSeed } from "@/lib/game/solve";
 import { elapsedMs, pauseGame, resumeGame } from "@/lib/game/time";
 import {
+  CompletedGame,
+  STATS_HISTORY_MAX,
   Settings,
   Stats,
   defaultSettings,
   defaultStats,
+  freshStats,
   loadCurrentGame,
   loadSettings,
   loadStats,
@@ -107,6 +111,41 @@ interface GameStore {
 const initialGame = (drawMode: DrawMode = 1): GameState =>
   dealKlondike("ssr-placeholder", drawMode);
 
+/**
+ * Append a CompletedGame entry to the history and refresh the matching
+ * per-mode aggregate. Pure: returns the next Stats object, never mutates.
+ *
+ * Top-level scalars (gamesPlayed/gamesWon/streaks) are NOT touched here —
+ * those are managed by the actions that already control them so existing
+ * behaviour around partial games / abandoned-streak-resets stays intact.
+ */
+function applyCompletedGame(prev: Stats, entry: CompletedGame): Stats {
+  const m = prev.byMode[entry.drawMode];
+  const updatedMode = {
+    played: m.played + 1,
+    won: m.won + (entry.won ? 1 : 0),
+    bestTimeMs: entry.won
+      ? m.bestTimeMs === null || entry.durationMs < m.bestTimeMs
+        ? entry.durationMs
+        : m.bestTimeMs
+      : m.bestTimeMs,
+    bestScore: entry.won
+      ? m.bestScore === null || entry.finalScore > m.bestScore
+        ? entry.finalScore
+        : m.bestScore
+      : m.bestScore,
+  };
+  // Most-recent-last so chronological iteration is the natural order. The
+  // capacity slice keeps the localStorage payload bounded.
+  const history = [...prev.history, entry].slice(-STATS_HISTORY_MAX);
+  return {
+    ...prev,
+    byMode: { ...prev.byMode, [entry.drawMode]: updatedMode },
+    history,
+    totalPlayTimeMs: prev.totalPlayTimeMs + entry.durationMs,
+  };
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
   game: initialGame(),
   history: [],
@@ -124,9 +163,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Capture the outgoing game BEFORE we overwrite state — starting a new
     // deal while the previous one was still in progress (playing or paused)
     // counts as abandoning it, which must break the win streak.
-    const prevStatus = get().game.status;
+    const prevGame = get().game;
+    const prevStatus = prevGame.status;
+    const prevDealType = get().settings.dealType;
     const abandonedInProgress =
       prevStatus === "playing" || prevStatus === "paused";
+    // We only count a game as "abandoned" if the player actually made a move.
+    // A fresh deal where the user immediately hits "Neu" again wasn't really
+    // played, so we don't pollute the history with zero-duration entries.
+    const abandonedRecordable =
+      abandonedInProgress && prevGame.moveCount > 0;
 
     const drawMode = opts?.drawMode ?? get().settings.drawMode;
     const dealType = opts?.dealType ?? get().settings.dealType;
@@ -162,11 +208,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Increment gamesPlayed lazily — we count a game as played the first time
     // a player completes or abandons it. For simplicity, we count on newGame.
     const prevStats = get().stats;
-    const stats: Stats = {
+    let stats: Stats = {
       ...prevStats,
       gamesPlayed: prevStats.gamesPlayed + 1,
       currentStreak: abandonedInProgress ? 0 : prevStats.currentStreak,
     };
+    if (abandonedRecordable) {
+      const now = Date.now();
+      const duration = elapsedMs(prevGame, now);
+      stats = applyCompletedGame(stats, {
+        endedAt: now,
+        drawMode: prevGame.drawMode,
+        dealType: prevDealType,
+        durationMs: duration,
+        score: prevGame.score,
+        finalScore: prevGame.score,
+        moves: prevGame.moveCount,
+        won: false,
+      });
+    }
     set({ stats });
     saveStats(stats);
   },
@@ -314,15 +374,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
         progressedSinceLastRecycle = false;
       }
       // Wait roughly one tween duration so the cascade reads as a sequence
-      // rather than a single instantaneous mutation.
-      await new Promise((resolve) => setTimeout(resolve, 90));
+      // rather than a single instantaneous mutation. With prefers-reduced-
+      // motion enabled we yield to the event loop instead — every step still
+      // dispatches separately (so the canvas can repaint between them) but
+      // the user sees the foundations fill near-instantly.
+      const stepDelay = reducedMotion() ? 0 : 90;
+      await new Promise((resolve) => setTimeout(resolve, stepDelay));
     }
 
     saveCurrentGame(get().game, get().history);
     if (get().game.status === "won" || isWon(get().game)) {
-      // Mark won if not already.
-      if (get().game.status !== "won") {
-        set({ game: { ...get().game, status: "won" } });
+      // Mark won if not already, and drain the running session into the
+      // accumulator so _recordWin sees the full elapsed time. tryApplyMove
+      // already does this on the winning move, but auto-complete may have
+      // aborted (intent === null) right after isWon flipped without the
+      // drain — defense in depth.
+      const cur = get().game;
+      if (cur.status !== "won") {
+        const sessionMs =
+          cur.startedAt !== null ? Math.max(0, Date.now() - cur.startedAt) : 0;
+        set({
+          game: {
+            ...cur,
+            status: "won",
+            accumulatedMs: cur.accumulatedMs + sessionMs,
+            startedAt: null,
+          },
+        });
       }
       get()._recordWin();
       set({ autoCompleteFailed: false });
@@ -366,8 +444,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   resetStats: () => {
-    set({ stats: defaultStats });
-    saveStats(defaultStats);
+    // Use freshStats() so resets don't share sub-object references with each
+    // other (or with the module-level defaultStats), which would otherwise
+    // make a future in-place mutation accidentally global.
+    const cleared = freshStats();
+    set({ stats: cleared });
+    saveStats(cleared);
   },
 
   hydrate: () => {
@@ -415,10 +497,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   _recordWin: () => {
     const game = get().game;
     if (game.status !== "won") return;
-    const total = elapsedMs(game, Date.now());
+    const now = Date.now();
+    const total = elapsedMs(game, now);
     const final = finalScore(game.score, total);
     const prev = get().stats;
-    const stats: Stats = {
+    let stats: Stats = {
       ...prev,
       gamesWon: prev.gamesWon + 1,
       bestTimeMs:
@@ -430,6 +513,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentStreak: prev.currentStreak + 1,
       longestStreak: Math.max(prev.longestStreak, prev.currentStreak + 1),
     };
+    stats = applyCompletedGame(stats, {
+      endedAt: now,
+      drawMode: game.drawMode,
+      dealType: get().settings.dealType,
+      durationMs: total,
+      score: game.score,
+      finalScore: final,
+      moves: game.moveCount,
+      won: true,
+    });
     // Trigger the canvas win finale. The CanvasBoard observer will short-
     // circuit it if prefers-reduced-motion is enabled.
     set({ stats, winFinalePlaying: true });

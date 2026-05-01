@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { dealKlondike } from "@/lib/game/deal";
 import { tryApplyMove } from "@/lib/game/moves";
 import { drawFromStock } from "@/lib/game/stock";
-import type { CardId, GameState, Pile } from "@/lib/game/types";
+import { elapsedMs } from "@/lib/game/time";
+import type { Card, CardId, GameState, Pile, Suit } from "@/lib/game/types";
 
 function ok<T extends { ok: boolean }>(r: T): Extract<T, { ok: true }> {
   if (!r.ok) throw new Error("expected ok, got " + JSON.stringify(r));
@@ -144,6 +145,91 @@ describe("tryApplyMove — auto move to foundation", () => {
     });
     const r = tryApplyMove(state, { kind: "autoMoveToFoundation", from: "waste" });
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("tryApplyMove — winning move freezes the timer", () => {
+  function justBeforeWin(startedAt: number): GameState {
+    const base = dealKlondike("test-seed", 1);
+    const fullSuitPile = (suit: Suit, count: number, fi: number): Pile => ({
+      id: `foundation-${fi}` as Pile["id"],
+      kind: "foundation",
+      cards: Array.from({ length: count }, (_, i) => ({
+        id: `${suit}-${(i + 1) as 1}` as CardId,
+        suit,
+        rank: (i + 1) as 1,
+        faceUp: true,
+      })),
+    });
+    // Three foundations complete; the spade foundation is missing only the king.
+    const foundations = [
+      fullSuitPile("clubs", 13, 0),
+      fullSuitPile("diamonds", 13, 1),
+      fullSuitPile("hearts", 13, 2),
+      fullSuitPile("spades", 12, 3),
+    ];
+    const spadeKing: Card = {
+      id: "spades-13" as CardId,
+      suit: "spades",
+      rank: 13,
+      faceUp: true,
+    };
+    const tableau: Pile[] = base.tableau.map((p, i) => ({
+      ...p,
+      cards: i === 0 ? [spadeKing] : [],
+    }));
+    return {
+      ...base,
+      foundations: foundations as unknown as GameState["foundations"],
+      tableau: tableau as unknown as GameState["tableau"],
+      stock: { ...base.stock, cards: [] },
+      waste: { ...base.waste, cards: [] },
+      status: "playing",
+      startedAt,
+      accumulatedMs: 0,
+    };
+  }
+
+  it("drains the running session into accumulatedMs and nulls startedAt", () => {
+    const t0 = 1_700_000_000_000;
+    const state = justBeforeWin(t0);
+    const winNow = t0 + 90_000; // 90s of unbroken play
+    const r = ok(
+      tryApplyMove(
+        state,
+        { kind: "move", from: "tableau-0", to: "foundation-3", cardId: "spades-13" },
+        winNow,
+      ),
+    );
+    expect(r.state.status).toBe("won");
+    expect(r.state.startedAt).toBeNull();
+    expect(r.state.accumulatedMs).toBe(90_000);
+    // elapsedMs() must agree no matter what wall-clock we ask it for after
+    // the win — the timer is frozen.
+    expect(elapsedMs(r.state, winNow)).toBe(90_000);
+    expect(elapsedMs(r.state, winNow + 5_000)).toBe(90_000);
+  });
+
+  it("preserves accumulated time from prior pause sessions", () => {
+    // Player paused once; accumulatedMs already holds 30s. After resume,
+    // they spend another 60s before the winning move. Total should be 90s.
+    const t0 = 1_700_000_000_000;
+    const stateWithPause: GameState = {
+      ...justBeforeWin(t0),
+      accumulatedMs: 30_000,
+    };
+    const winNow = t0 + 60_000;
+    const r = ok(
+      tryApplyMove(
+        stateWithPause,
+        { kind: "move", from: "tableau-0", to: "foundation-3", cardId: "spades-13" },
+        winNow,
+      ),
+    );
+    expect(r.state.status).toBe("won");
+    expect(r.state.startedAt).toBeNull();
+    expect(r.state.accumulatedMs).toBe(90_000);
+    expect(elapsedMs(r.state, winNow + 1_000)).toBe(90_000);
   });
 });
 

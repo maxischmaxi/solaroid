@@ -52,11 +52,91 @@ describe("migrateAndValidate — settings", () => {
 
 describe("migrateAndValidate — stats", () => {
   it("tolerates a partial stats object by merging with defaults", () => {
-    const out = migrateAndValidate(1, { gamesPlayed: 5 }, statsConfig);
+    const out = migrateAndValidate(
+      statsConfig.currentVersion,
+      { gamesPlayed: 5 },
+      statsConfig,
+    );
     expect(out).not.toBeNull();
     expect(out!.gamesPlayed).toBe(5);
     expect(out!.gamesWon).toBe(defaultStats.gamesWon);
     expect(out!.currentStreak).toBe(defaultStats.currentStreak);
+  });
+
+  it("migrates v1 saves by adding empty byMode/history/totalPlayTimeMs", () => {
+    // Pre-v2 save: just the original aggregate fields.
+    const v1 = {
+      gamesPlayed: 12,
+      gamesWon: 7,
+      bestTimeMs: 90_000,
+      bestScore: 4_500,
+      currentStreak: 2,
+      longestStreak: 5,
+    };
+    const out = migrateAndValidate(1, v1, statsConfig);
+    expect(out).not.toBeNull();
+    expect(out!.gamesPlayed).toBe(12);
+    expect(out!.gamesWon).toBe(7);
+    expect(out!.bestTimeMs).toBe(90_000);
+    expect(out!.byMode[1].played).toBe(0);
+    expect(out!.byMode[3].played).toBe(0);
+    expect(out!.history).toEqual([]);
+    expect(out!.totalPlayTimeMs).toBe(0);
+  });
+
+  it("normalizes history entries and drops corrupted ones", () => {
+    const v2 = {
+      ...defaultStats,
+      history: [
+        // valid
+        {
+          endedAt: 1,
+          drawMode: 1,
+          dealType: "random",
+          durationMs: 60_000,
+          score: 200,
+          finalScore: 350,
+          moves: 70,
+          won: true,
+        },
+        // missing required fields → dropped
+        { endedAt: 2 },
+        // string drawMode → dropped
+        {
+          endedAt: 3,
+          drawMode: "1",
+          durationMs: 1,
+          score: 0,
+          moves: 0,
+          won: false,
+        },
+      ],
+    };
+    const out = migrateAndValidate(statsConfig.currentVersion, v2, statsConfig);
+    expect(out).not.toBeNull();
+    expect(out!.history).toHaveLength(1);
+    expect(out!.history[0].drawMode).toBe(1);
+  });
+
+  it("caps the persisted history length at STATS_HISTORY_MAX", () => {
+    const tooMany = Array.from({ length: 250 }, (_, i) => ({
+      endedAt: i,
+      drawMode: 1 as const,
+      dealType: "random" as const,
+      durationMs: 60_000,
+      score: i,
+      finalScore: i,
+      moves: 1,
+      won: i % 2 === 0,
+    }));
+    const out = migrateAndValidate(
+      statsConfig.currentVersion,
+      { ...defaultStats, history: tooMany },
+      statsConfig,
+    );
+    expect(out!.history.length).toBeLessThanOrEqual(100);
+    // Latest entries are kept (we slice from the tail).
+    expect(out!.history[out!.history.length - 1].endedAt).toBe(249);
   });
 });
 

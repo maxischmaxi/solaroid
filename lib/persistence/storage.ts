@@ -18,6 +18,10 @@ const SETTINGS_KEY = "solitaer:settings:v1";
 const STATS_KEY = "solitaer:stats:v1";
 const GAME_KEY = "solitaer:currentGame:v1";
 
+/** Cap the per-stat history at this size so the localStorage payload doesn't
+ *  grow unbounded. The charts only ever consume the last N entries anyway. */
+export const STATS_HISTORY_MAX = 100;
+
 export interface Settings {
   drawMode: DrawMode;
   autoCompleteEnabled: boolean;
@@ -28,6 +32,29 @@ export interface Settings {
   redealLimit: number | null;
 }
 
+/** Per-draw-mode aggregate so the UI can compare Draw 1 vs Draw 3. */
+export interface PerModeStats {
+  played: number;
+  won: number;
+  bestTimeMs: number | null;
+  bestScore: number | null;
+}
+
+/** A single completed (won OR abandoned/lost) game. The charts read these. */
+export interface CompletedGame {
+  /** Wall-clock ms when this game ended. */
+  endedAt: number;
+  drawMode: DrawMode;
+  dealType: DealType;
+  durationMs: number;
+  /** Raw board score at end (no time bonus). */
+  score: number;
+  /** With Microsoft time bonus on a win, otherwise equals `score`. */
+  finalScore: number;
+  moves: number;
+  won: boolean;
+}
+
 export interface Stats {
   gamesPlayed: number;
   gamesWon: number;
@@ -35,6 +62,12 @@ export interface Stats {
   bestScore: number | null;
   currentStreak: number;
   longestStreak: number;
+  /** Per-draw-mode breakdown so we can compare Draw 1 vs Draw 3. */
+  byMode: Record<DrawMode, PerModeStats>;
+  /** Most recent first; capped at STATS_HISTORY_MAX. */
+  history: CompletedGame[];
+  /** Sum of every completed game's durationMs. */
+  totalPlayTimeMs: number;
 }
 
 export interface PersistedGame {
@@ -50,14 +83,28 @@ export const defaultSettings: Settings = {
   redealLimit: null,
 };
 
-export const defaultStats: Stats = {
-  gamesPlayed: 0,
-  gamesWon: 0,
-  bestTimeMs: null,
-  bestScore: null,
-  currentStreak: 0,
-  longestStreak: 0,
-};
+function emptyPerMode(): PerModeStats {
+  return { played: 0, won: 0, bestTimeMs: null, bestScore: null };
+}
+
+/** Factory for a pristine Stats object. Returns a fresh sub-object tree on
+ *  every call so callers (newGame, resetStats) don't accidentally share
+ *  references. */
+export function freshStats(): Stats {
+  return {
+    gamesPlayed: 0,
+    gamesWon: 0,
+    bestTimeMs: null,
+    bestScore: null,
+    currentStreak: 0,
+    longestStreak: 0,
+    byMode: { 1: emptyPerMode(), 3: emptyPerMode() },
+    history: [],
+    totalPlayTimeMs: 0,
+  };
+}
+
+export const defaultStats: Stats = freshStats();
 
 function isBrowser(): boolean {
   return typeof window !== "undefined" && typeof localStorage !== "undefined";
@@ -175,12 +222,82 @@ export function saveSettings(s: Settings): void {
 
 /* ---------- Stats ---------- */
 
+function normalizePerMode(x: unknown): PerModeStats {
+  if (!isPlainObject(x)) return emptyPerMode();
+  const m = x as Partial<PerModeStats>;
+  return {
+    played: typeof m.played === "number" ? m.played : 0,
+    won: typeof m.won === "number" ? m.won : 0,
+    bestTimeMs: typeof m.bestTimeMs === "number" ? m.bestTimeMs : null,
+    bestScore: typeof m.bestScore === "number" ? m.bestScore : null,
+  };
+}
+
+function normalizeHistory(x: unknown): CompletedGame[] {
+  if (!Array.isArray(x)) return [];
+  const out: CompletedGame[] = [];
+  for (const entry of x) {
+    if (!isPlainObject(entry)) continue;
+    const e = entry as Partial<CompletedGame>;
+    if (
+      typeof e.endedAt !== "number" ||
+      typeof e.durationMs !== "number" ||
+      typeof e.score !== "number" ||
+      typeof e.moves !== "number" ||
+      typeof e.won !== "boolean" ||
+      (e.drawMode !== 1 && e.drawMode !== 3)
+    ) {
+      continue;
+    }
+    out.push({
+      endedAt: e.endedAt,
+      drawMode: e.drawMode,
+      dealType:
+        e.dealType === "winnable" ||
+        e.dealType === "replay" ||
+        e.dealType === "daily"
+          ? e.dealType
+          : "random",
+      durationMs: e.durationMs,
+      score: e.score,
+      finalScore: typeof e.finalScore === "number" ? e.finalScore : e.score,
+      moves: e.moves,
+      won: e.won,
+    });
+  }
+  return out.slice(-STATS_HISTORY_MAX);
+}
+
 export const statsConfig: VersionedConfig<Stats> = {
-  currentVersion: 1,
-  migrations: {},
+  currentVersion: 2,
+  migrations: {
+    // v1 → v2: introduce per-mode breakdown and per-game history. Anything
+    // we can't reconstruct from the old aggregate gets a safe zero/empty.
+    1: (old) => {
+      const o = isPlainObject(old) ? old : {};
+      return {
+        ...o,
+        byMode: { 1: emptyPerMode(), 3: emptyPerMode() },
+        history: [],
+        totalPlayTimeMs: 0,
+      };
+    },
+  },
   validate: (data) => {
     if (!isPlainObject(data)) return null;
-    return { ...defaultStats, ...data } as Stats;
+    const fresh = freshStats();
+    const byMode = isPlainObject(data.byMode) ? data.byMode : {};
+    return {
+      ...fresh,
+      ...data,
+      byMode: {
+        1: normalizePerMode((byMode as Record<string, unknown>)[1]),
+        3: normalizePerMode((byMode as Record<string, unknown>)[3]),
+      },
+      history: normalizeHistory(data.history),
+      totalPlayTimeMs:
+        typeof data.totalPlayTimeMs === "number" ? data.totalPlayTimeMs : 0,
+    } as Stats;
   },
 };
 

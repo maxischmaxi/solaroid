@@ -6,10 +6,19 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
+  /** Tailwind max-width class. Defaults to `max-w-sm`; larger modals (e.g.
+   *  StatsModal with charts) can pass `max-w-md` / `max-w-lg`. */
+  maxWidthClass?: string;
   children: ReactNode;
 }
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  maxWidthClass = "max-w-sm",
+  children,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -41,7 +50,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         onClick={onClose}
       />
       <div
-        className="relative z-10 w-full max-w-sm rounded-2xl sm:rounded-lg bg-[var(--color-modal-bg)] text-[var(--color-modal-text)] shadow-2xl ring-1 ring-black/20 max-h-[calc(100dvh-1.5rem)] sm:max-h-[85dvh] overflow-hidden flex flex-col"
+        className={`relative z-10 w-full ${maxWidthClass} rounded-2xl sm:rounded-lg bg-[var(--color-modal-bg)] text-[var(--color-modal-text)] shadow-2xl ring-1 ring-black/20 max-h-[calc(100dvh-1.5rem)] sm:max-h-[85dvh] overflow-hidden flex flex-col`}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-modal-border)] shrink-0">
           <h2 className="font-semibold text-base">{title}</h2>

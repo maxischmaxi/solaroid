@@ -162,11 +162,24 @@ canvas {
   user-select: none;
 }
 
+/* Honour the system "reduced motion" preference: kill every CSS keyframe
+   animation, every transition, and every smooth-scroll. The canvas tween
+   pipeline checks the same media query in JS (lib/canvas/reducedMotion.ts)
+   so card moves and the win-finale also collapse to instant. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
+    /* `animation: none` would also strip the rule's name, leaving keyframes
+       inert even when the rule is re-applied. We instead force every running
+       animation to a single, near-zero-length pass so layout effects (e.g.
+       Tailwind's animate-pulse opacity values) settle on their final keyframe
+       without any visible motion. */
     animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
   }
 }

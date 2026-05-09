@@ -32,12 +32,13 @@ describe("drawFromStock — Draw 1", () => {
     expect(drawFromStock(state).ok).toBe(false);
   });
 
-  it("does not start the timer on stock draw — only actual card moves start playing", () => {
+  it("starts the timer on the first stock draw", () => {
     let state = dealKlondike("seed-1", 1);
+    const t0 = 1_000_000;
     expect(state.status).toBe("idle");
-    state = ok(drawFromStock(state)).state;
-    expect(state.status).toBe("idle");
-    expect(state.startedAt).toBeNull();
+    state = ok(drawFromStock(state, t0)).state;
+    expect(state.status).toBe("playing");
+    expect(state.startedAt).toBe(t0);
   });
 });
 
@@ -98,11 +99,15 @@ describe("recycleWaste", () => {
 
   it("increments stockCycles and applies the Draw 1 penalty (-100)", () => {
     let state = dealKlondike("seed-1", 1);
-    for (let i = 0; i < 24; i++) state = ok(drawFromStock(state)).state;
+    const t0 = 1_000_000;
+    state = ok(drawFromStock(state, t0)).state;
+    for (let i = 1; i < 24; i++) state = ok(drawFromStock(state)).state;
     const scoreBefore = state.score;
-    state = ok(recycleWaste(state)).state;
+    state = ok(recycleWaste(state, t0 + 50_000)).state;
     expect(state.stockCycles).toBe(1);
     expect(state.score).toBe(scoreBefore - 100);
+    expect(state.status).toBe("playing");
+    expect(state.startedAt).toBe(t0);
   });
 
   it("applies the Draw 3 penalty (-20)", () => {

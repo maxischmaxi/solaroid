@@ -118,6 +118,41 @@ describe("migrateAndValidate — stats", () => {
     expect(out!.history[0].drawMode).toBe(1);
   });
 
+  it("repairs impossible zero-second win times from older saves", () => {
+    const out = migrateAndValidate(
+      statsConfig.currentVersion,
+      {
+        ...defaultStats,
+        gamesPlayed: 0,
+        gamesWon: 1,
+        bestTimeMs: 0,
+        byMode: {
+          1: { played: 0, won: 1, bestTimeMs: 0, bestScore: 123 },
+          3: { played: 0, won: 0, bestTimeMs: null, bestScore: null },
+        },
+        history: [
+          {
+            endedAt: 1,
+            drawMode: 1,
+            dealType: "random",
+            durationMs: 0,
+            score: 100,
+            finalScore: 200,
+            moves: 1,
+            won: true,
+          },
+        ],
+      },
+      statsConfig,
+    );
+    expect(out).not.toBeNull();
+    expect(out!.gamesPlayed).toBe(1);
+    expect(out!.bestTimeMs).toBe(1000);
+    expect(out!.byMode[1].played).toBe(1);
+    expect(out!.byMode[1].bestTimeMs).toBe(1000);
+    expect(out!.history[0].durationMs).toBe(1000);
+  });
+
   it("caps the persisted history length at STATS_HISTORY_MAX", () => {
     const tooMany = Array.from({ length: 250 }, (_, i) => ({
       endedAt: i,

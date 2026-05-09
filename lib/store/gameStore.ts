@@ -119,30 +119,42 @@ const initialGame = (drawMode: DrawMode = 1): GameState =>
  * those are managed by the actions that already control them so existing
  * behaviour around partial games / abandoned-streak-resets stays intact.
  */
+function completedDurationMs(durationMs: number, won: boolean): number {
+  const duration = Number.isFinite(durationMs) ? Math.max(0, Math.floor(durationMs)) : 0;
+  // A displayed best win time of 0:00 is never useful and usually means the
+  // timer started on the winning transition itself. Clamp won games to the
+  // same one-second floor used by the time-bonus formula.
+  return won ? Math.max(1000, duration) : duration;
+}
+
 function applyCompletedGame(prev: Stats, entry: CompletedGame): Stats {
-  const m = prev.byMode[entry.drawMode];
+  const completed: CompletedGame = {
+    ...entry,
+    durationMs: completedDurationMs(entry.durationMs, entry.won),
+  };
+  const m = prev.byMode[completed.drawMode];
   const updatedMode = {
     played: m.played + 1,
-    won: m.won + (entry.won ? 1 : 0),
-    bestTimeMs: entry.won
-      ? m.bestTimeMs === null || entry.durationMs < m.bestTimeMs
-        ? entry.durationMs
+    won: m.won + (completed.won ? 1 : 0),
+    bestTimeMs: completed.won
+      ? m.bestTimeMs === null || completed.durationMs < m.bestTimeMs
+        ? completed.durationMs
         : m.bestTimeMs
       : m.bestTimeMs,
-    bestScore: entry.won
-      ? m.bestScore === null || entry.finalScore > m.bestScore
-        ? entry.finalScore
+    bestScore: completed.won
+      ? m.bestScore === null || completed.finalScore > m.bestScore
+        ? completed.finalScore
         : m.bestScore
       : m.bestScore,
   };
   // Most-recent-last so chronological iteration is the natural order. The
   // capacity slice keeps the localStorage payload bounded.
-  const history = [...prev.history, entry].slice(-STATS_HISTORY_MAX);
+  const history = [...prev.history, completed].slice(-STATS_HISTORY_MAX);
   return {
     ...prev,
-    byMode: { ...prev.byMode, [entry.drawMode]: updatedMode },
+    byMode: { ...prev.byMode, [completed.drawMode]: updatedMode },
     history,
-    totalPlayTimeMs: prev.totalPlayTimeMs + entry.durationMs,
+    totalPlayTimeMs: prev.totalPlayTimeMs + completed.durationMs,
   };
 }
 
@@ -205,30 +217,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gameOverOpen: false,
     });
     saveCurrentGame(game, []);
-    // Increment gamesPlayed lazily — we count a game as played the first time
-    // a player completes or abandons it. For simplicity, we count on newGame.
-    const prevStats = get().stats;
-    let stats: Stats = {
-      ...prevStats,
-      gamesPlayed: prevStats.gamesPlayed + 1,
-      currentStreak: abandonedInProgress ? 0 : prevStats.currentStreak,
-    };
+
+    // Count a game as played only when it actually finishes or when a started
+    // deal is abandoned. Re-dealing a fresh untouched board must not pollute
+    // win-rate or history.
     if (abandonedRecordable) {
       const now = Date.now();
       const duration = elapsedMs(prevGame, now);
-      stats = applyCompletedGame(stats, {
-        endedAt: now,
-        drawMode: prevGame.drawMode,
-        dealType: prevDealType,
-        durationMs: duration,
-        score: prevGame.score,
-        finalScore: prevGame.score,
-        moves: prevGame.moveCount,
-        won: false,
-      });
+      const prevStats = get().stats;
+      const stats = applyCompletedGame(
+        {
+          ...prevStats,
+          gamesPlayed: prevStats.gamesPlayed + 1,
+          currentStreak: 0,
+        },
+        {
+          endedAt: now,
+          drawMode: prevGame.drawMode,
+          dealType: prevDealType,
+          durationMs: duration,
+          score: prevGame.score,
+          finalScore: prevGame.score,
+          moves: prevGame.moveCount,
+          won: false,
+        },
+      );
+      set({ stats });
+      saveStats(stats);
     }
-    set({ stats });
-    saveStats(stats);
   },
 
   dispatchMove: (intent) => {
@@ -366,8 +382,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const before = totalFoundationCards(cur);
       const result = tryApplyMove(cur, intent);
       if (!result.ok) break;
-      set({ game: result.state });
-      const after = totalFoundationCards(result.state);
+      // Auto-complete is a convenience after the board is effectively solved.
+      // Do not let automatic stock recycling visibly drag the score downward;
+      // manual recycles during normal play still keep their scoring penalty.
+      const next =
+        intent.kind === "recycle" && result.state.score < cur.score
+          ? { ...result.state, score: cur.score }
+          : result.state;
+      set({ game: next });
+      const after = totalFoundationCards(next);
       if (after > before) {
         progressedSinceLastRecycle = true;
       } else if (intent.kind === "recycle") {
@@ -498,11 +521,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const game = get().game;
     if (game.status !== "won") return;
     const now = Date.now();
-    const total = elapsedMs(game, now);
+    const total = completedDurationMs(elapsedMs(game, now), true);
     const final = finalScore(game.score, total);
     const prev = get().stats;
     let stats: Stats = {
       ...prev,
+      gamesPlayed: prev.gamesPlayed + 1,
       gamesWon: prev.gamesWon + 1,
       bestTimeMs:
         prev.bestTimeMs === null || total < prev.bestTimeMs

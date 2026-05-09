@@ -222,14 +222,67 @@ export function saveSettings(s: Settings): void {
 
 /* ---------- Stats ---------- */
 
-function normalizePerMode(x: unknown): PerModeStats {
-  if (!isPlainObject(x)) return emptyPerMode();
-  const m = x as Partial<PerModeStats>;
+function isFiniteNumber(x: unknown): x is number {
+  return typeof x === "number" && Number.isFinite(x);
+}
+
+function nonNegativeInt(x: unknown): number {
+  return isFiniteNumber(x) ? Math.max(0, Math.floor(x)) : 0;
+}
+
+function normalizeCompletedDuration(durationMs: unknown, won: boolean): number | null {
+  if (!isFiniteNumber(durationMs)) return null;
+  const duration = Math.max(0, Math.floor(durationMs));
+  return won ? Math.max(1000, duration) : duration;
+}
+
+function normalizeBestTimeMs(x: unknown): number | null {
+  if (!isFiniteNumber(x) || x <= 0) return null;
+  return Math.max(1000, Math.floor(x));
+}
+
+function normalizeBestScore(x: unknown): number | null {
+  return isFiniteNumber(x) ? Math.floor(x) : null;
+}
+
+function bestWonTime(
+  history: CompletedGame[],
+  drawMode?: DrawMode,
+): number | null {
+  const wins = history.filter(
+    (g) => g.won && (drawMode === undefined || g.drawMode === drawMode),
+  );
+  if (wins.length === 0) return null;
+  return Math.min(...wins.map((g) => g.durationMs));
+}
+
+function bestWonScore(
+  history: CompletedGame[],
+  drawMode?: DrawMode,
+): number | null {
+  const wins = history.filter(
+    (g) => g.won && (drawMode === undefined || g.drawMode === drawMode),
+  );
+  if (wins.length === 0) return null;
+  return Math.max(...wins.map((g) => g.finalScore));
+}
+
+function normalizePerMode(
+  x: unknown,
+  history: CompletedGame[],
+  drawMode: DrawMode,
+): PerModeStats {
+  const m = isPlainObject(x) ? (x as Partial<PerModeStats>) : {};
+  const modeHistory = history.filter((g) => g.drawMode === drawMode);
+  const modeWins = modeHistory.filter((g) => g.won).length;
+  const won = Math.max(nonNegativeInt(m.won), modeWins);
+  const played = Math.max(nonNegativeInt(m.played), won, modeHistory.length);
   return {
-    played: typeof m.played === "number" ? m.played : 0,
-    won: typeof m.won === "number" ? m.won : 0,
-    bestTimeMs: typeof m.bestTimeMs === "number" ? m.bestTimeMs : null,
-    bestScore: typeof m.bestScore === "number" ? m.bestScore : null,
+    played,
+    won,
+    bestTimeMs:
+      normalizeBestTimeMs(m.bestTimeMs) ?? bestWonTime(history, drawMode),
+    bestScore: normalizeBestScore(m.bestScore) ?? bestWonScore(history, drawMode),
   };
 }
 
@@ -240,17 +293,18 @@ function normalizeHistory(x: unknown): CompletedGame[] {
     if (!isPlainObject(entry)) continue;
     const e = entry as Partial<CompletedGame>;
     if (
-      typeof e.endedAt !== "number" ||
-      typeof e.durationMs !== "number" ||
-      typeof e.score !== "number" ||
-      typeof e.moves !== "number" ||
+      !isFiniteNumber(e.endedAt) ||
+      !isFiniteNumber(e.score) ||
+      !isFiniteNumber(e.moves) ||
       typeof e.won !== "boolean" ||
       (e.drawMode !== 1 && e.drawMode !== 3)
     ) {
       continue;
     }
+    const durationMs = normalizeCompletedDuration(e.durationMs, e.won);
+    if (durationMs === null) continue;
     out.push({
-      endedAt: e.endedAt,
+      endedAt: Math.floor(e.endedAt),
       drawMode: e.drawMode,
       dealType:
         e.dealType === "winnable" ||
@@ -258,10 +312,12 @@ function normalizeHistory(x: unknown): CompletedGame[] {
         e.dealType === "daily"
           ? e.dealType
           : "random",
-      durationMs: e.durationMs,
-      score: e.score,
-      finalScore: typeof e.finalScore === "number" ? e.finalScore : e.score,
-      moves: e.moves,
+      durationMs,
+      score: Math.floor(e.score),
+      finalScore: isFiniteNumber(e.finalScore)
+        ? Math.floor(e.finalScore)
+        : Math.floor(e.score),
+      moves: nonNegativeInt(e.moves),
       won: e.won,
     });
   }
@@ -285,24 +341,37 @@ export const statsConfig: VersionedConfig<Stats> = {
   },
   validate: (data) => {
     if (!isPlainObject(data)) return null;
-    const fresh = freshStats();
+    const history = normalizeHistory(data.history);
     const byMode = isPlainObject(data.byMode) ? data.byMode : {};
+    const historyWins = history.filter((g) => g.won).length;
+    const gamesWon = Math.max(nonNegativeInt(data.gamesWon), historyWins);
+    const gamesPlayed = Math.max(
+      nonNegativeInt(data.gamesPlayed),
+      gamesWon,
+      history.length,
+    );
+    const currentStreak = nonNegativeInt(data.currentStreak);
+    const totalFromHistory = history.reduce((sum, g) => sum + g.durationMs, 0);
+    const rawTotalPlayTimeMs = nonNegativeInt(data.totalPlayTimeMs);
     return {
-      ...fresh,
-      ...data,
+      gamesPlayed,
+      gamesWon,
+      bestTimeMs: normalizeBestTimeMs(data.bestTimeMs) ?? bestWonTime(history),
+      bestScore: normalizeBestScore(data.bestScore) ?? bestWonScore(history),
+      currentStreak,
+      longestStreak: Math.max(nonNegativeInt(data.longestStreak), currentStreak),
       byMode: {
-        1: normalizePerMode((byMode as Record<string, unknown>)[1]),
-        3: normalizePerMode((byMode as Record<string, unknown>)[3]),
+        1: normalizePerMode((byMode as Record<string, unknown>)[1], history, 1),
+        3: normalizePerMode((byMode as Record<string, unknown>)[3], history, 3),
       },
-      history: normalizeHistory(data.history),
-      totalPlayTimeMs:
-        typeof data.totalPlayTimeMs === "number" ? data.totalPlayTimeMs : 0,
-    } as Stats;
+      history,
+      totalPlayTimeMs: Math.max(rawTotalPlayTimeMs, totalFromHistory),
+    };
   },
 };
 
 export function loadStats(): Stats {
-  return loadVersioned(STATS_KEY, statsConfig) ?? defaultStats;
+  return loadVersioned(STATS_KEY, statsConfig) ?? freshStats();
 }
 
 export function saveStats(s: Stats): void {

@@ -15,8 +15,8 @@ interface Props {
 }
 
 function formatTime(ms: number | null): string {
-  if (ms === null) return "—";
-  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  if (ms === null || ms <= 0) return "—";
+  const totalSec = Math.max(1, Math.floor(ms / 1000));
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;

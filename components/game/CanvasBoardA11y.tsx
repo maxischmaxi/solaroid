@@ -5,7 +5,6 @@
 // and announced by assistive tech. Mirrors the same aria-labels and click
 // affordances the previous DOM components provided.
 
-import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "@/lib/store/gameStore";
 import type {
   Card,
@@ -104,15 +103,10 @@ export function CanvasBoardA11y() {
   const recycleWaste = useGameStore((s) => s.recycleWaste);
   const findBest = useGameStore((s) => s.findBestDestination);
 
-  const [announcement, setAnnouncement] = useState("");
-  const lastAnnouncedMove = useRef<number>(moveCount);
-
-  // Build a one-line move announcement whenever moveCount increments.
-  useEffect(() => {
-    if (moveCount === lastAnnouncedMove.current) return;
-    lastAnnouncedMove.current = moveCount;
-    setAnnouncement(`Zug ${moveCount}. Punkte: ${game.score}.`);
-  }, [moveCount, game.score]);
+  // Build a one-line move announcement from render state. No effect/state
+  // needed: the aria-live region updates whenever the store snapshot changes.
+  const announcement =
+    moveCount > 0 ? `Zug ${moveCount}. Punkte: ${game.score}.` : "";
 
   const handleClick = (pileId: PileId): void => {
     if (pileId === "stock") {

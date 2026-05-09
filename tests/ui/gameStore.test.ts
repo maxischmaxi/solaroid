@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { dealKlondike } from "@/lib/game/deal";
 import { defaultSettings, defaultStats, freshStats } from "@/lib/persistence/storage";
 import { useGameStore } from "@/lib/store/gameStore";
+import type { GameState } from "@/lib/game/types";
 
 function resetStore(overrides: Partial<ReturnType<typeof useGameStore.getState>> = {}): void {
   useGameStore.setState({
@@ -30,17 +31,23 @@ describe("streak accounting around newGame", () => {
   it("preserves streak when the previous game was won", () => {
     resetStore({
       game: { ...useGameStore.getState().game, status: "won" },
-      stats: { ...defaultStats, currentStreak: 2, longestStreak: 2 },
+      stats: {
+        ...defaultStats,
+        gamesPlayed: 2,
+        gamesWon: 2,
+        currentStreak: 2,
+        longestStreak: 2,
+      },
     });
     useGameStore.getState().newGame();
     const stats = useGameStore.getState().stats;
     expect(stats.currentStreak).toBe(2);
-    expect(stats.gamesPlayed).toBe(1);
+    expect(stats.gamesPlayed).toBe(2);
   });
 
   it("resets streak to zero when a playing game is abandoned", () => {
     resetStore({
-      game: { ...useGameStore.getState().game, status: "playing" },
+      game: { ...useGameStore.getState().game, status: "playing", moveCount: 1 },
       stats: { ...defaultStats, currentStreak: 3, longestStreak: 5 },
     });
     useGameStore.getState().newGame();
@@ -55,7 +62,9 @@ describe("streak accounting around newGame", () => {
       stats: { ...defaultStats, currentStreak: 4, longestStreak: 4 },
     });
     useGameStore.getState().newGame();
-    expect(useGameStore.getState().stats.currentStreak).toBe(4);
+    const stats = useGameStore.getState().stats;
+    expect(stats.currentStreak).toBe(4);
+    expect(stats.gamesPlayed).toBe(0);
   });
 });
 
@@ -88,6 +97,7 @@ describe("stats history accounting", () => {
     resetStore({ stats: freshStats() });
     useGameStore.getState().newGame();
     expect(useGameStore.getState().stats.history).toHaveLength(0);
+    expect(useGameStore.getState().stats.gamesPlayed).toBe(0);
     expect(useGameStore.getState().stats.byMode[1].played).toBe(0);
   });
 
@@ -120,6 +130,8 @@ describe("stats history accounting", () => {
     expect(stats.history[0].dealType).toBe("winnable");
     expect(stats.history[0].durationMs).toBe(60_000);
     expect(stats.history[0].finalScore).toBeGreaterThan(stats.history[0].score);
+    expect(stats.gamesPlayed).toBe(1);
+    expect(stats.gamesWon).toBe(1);
     expect(stats.byMode[3].played).toBe(1);
     expect(stats.byMode[3].won).toBe(1);
     expect(stats.byMode[3].bestTimeMs).toBe(60_000);
@@ -149,11 +161,11 @@ describe("pause / resume via the store", () => {
     expect(useGameStore.getState().game.status).toBe("idle");
   });
 
-  it("drawing from stock does not start the timer (still idle)", () => {
+  it("drawing from stock starts the timer", () => {
     useGameStore.getState().drawFromStock();
     const game = useGameStore.getState().game;
-    expect(game.status).toBe("idle");
-    expect(game.startedAt).toBeNull();
+    expect(game.status).toBe("playing");
+    expect(game.startedAt).not.toBeNull();
   });
 
   it("pause after a real card move flips status and freezes startedAt", () => {
@@ -197,6 +209,48 @@ describe("pause / resume via the store", () => {
     const before = useGameStore.getState().game;
     useGameStore.getState().drawFromStock();
     expect(useGameStore.getState().game).toBe(before);
+  });
+});
+
+describe("auto-complete scoring", () => {
+  it("does not let automatic recycle penalties drag the score down", async () => {
+    const base = dealKlondike("auto-recycle", 1);
+    const wasteCard = base.stock.cards.find((c) => c.rank === 2)!;
+    const game: GameState = {
+      ...base,
+      tableau: base.tableau.map((pile) => ({
+        ...pile,
+        cards: [],
+      })) as unknown as GameState["tableau"],
+      foundations: base.foundations.map((pile) => ({
+        ...pile,
+        cards: [],
+      })) as unknown as GameState["foundations"],
+      stock: { ...base.stock, cards: [] },
+      waste: { ...base.waste, cards: [{ ...wasteCard, faceUp: true }] },
+      score: 100,
+      moveCount: 10,
+      startedAt: Date.now() - 5_000,
+      status: "playing",
+    };
+    resetStore({ game, stats: freshStats() });
+
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({ matches: true }),
+    });
+    try {
+      await useGameStore.getState().autoComplete();
+    } finally {
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        value: originalMatchMedia,
+      });
+    }
+
+    expect(useGameStore.getState().game.score).toBe(100);
+    expect(useGameStore.getState().autoCompleteFailed).toBe(true);
   });
 });
 

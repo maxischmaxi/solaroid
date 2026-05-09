@@ -1,9 +1,22 @@
 import { recyclePenalty } from "./scoring";
-import type { ApplyResult, Card, GameState, Pile } from "./types";
+import type { ApplyResult, Card, GameState, GameStatus, Pile } from "./types";
+
+function startedClockFields(
+  state: GameState,
+  nowMs: number,
+): { startedAt: number | null; status: GameStatus } {
+  if (state.status !== "idle") {
+    return { startedAt: state.startedAt, status: state.status };
+  }
+  return { startedAt: nowMs, status: "playing" };
+}
 
 // Draw from stock: move up to drawMode cards from stock top → waste top, all face-up.
 // If stock is empty, this is illegal — caller should explicitly recycle instead.
-export function drawFromStock(state: GameState): ApplyResult {
+export function drawFromStock(
+  state: GameState,
+  nowMs: number = Date.now(),
+): ApplyResult {
   if (state.stock.cards.length === 0) {
     return { ok: false, reason: "stock-empty" };
   }
@@ -25,6 +38,7 @@ export function drawFromStock(state: GameState): ApplyResult {
 
   const next: GameState = {
     ...state,
+    ...startedClockFields(state, nowMs),
     stock: nextStock,
     waste: nextWaste,
     moveCount: state.moveCount + 1,
@@ -35,7 +49,10 @@ export function drawFromStock(state: GameState): ApplyResult {
 // Recycle: only legal when stock is empty and waste is non-empty. Moves all of
 // waste back into stock face-down, in reverse order, and increments stockCycles.
 // Applies the recycle penalty to score.
-export function recycleWaste(state: GameState): ApplyResult {
+export function recycleWaste(
+  state: GameState,
+  nowMs: number = Date.now(),
+): ApplyResult {
   if (state.stock.cards.length !== 0) {
     return { ok: false, reason: "stock-not-empty" };
   }
@@ -53,6 +70,7 @@ export function recycleWaste(state: GameState): ApplyResult {
 
   const next: GameState = {
     ...state,
+    ...startedClockFields(state, nowMs),
     stock: { ...state.stock, cards: newStockCards },
     waste: { ...state.waste, cards: [] },
     stockCycles: state.stockCycles + 1,

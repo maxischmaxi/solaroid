@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import confetti from "canvas-confetti";
 import { useGameStore } from "@/lib/store/gameStore";
+import { finalScore, timeBonus } from "@/lib/game/scoring";
 import { elapsedMs } from "@/lib/game/time";
 import { Modal } from "./Modal";
 import { NewGameButton } from "@/components/game/NewGameButton";
@@ -13,7 +14,7 @@ interface Props {
 }
 
 function formatTime(ms: number): string {
-  const sec = Math.max(0, Math.floor(ms / 1000));
+  const sec = Math.max(1, Math.floor(ms / 1000));
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
@@ -40,10 +41,11 @@ export function WinModal({ open, onClose }: Props) {
   }, [open]);
 
   // After tryApplyMove drains the running session on win, `accumulatedMs`
-  // holds the full play time and `startedAt` is null. Use elapsedMs() so
-  // both the drained-and-frozen win state and any (paused-style) edge case
-  // produce the same answer the stats dialog records.
-  const elapsed = elapsedMs(game, Date.now());
+  // holds the full play time and `startedAt` is null. Use a pure read here;
+  // Date.now() during render would make React's purity lint unhappy.
+  const elapsed = Math.max(1000, elapsedMs(game, 0));
+  const bonus = timeBonus(elapsed);
+  const totalScore = finalScore(game.score, elapsed);
 
   return (
     <Modal open={open} onClose={onClose} title="Gewonnen!">
@@ -57,8 +59,12 @@ export function WinModal({ open, onClose }: Props) {
           <dd className="text-left font-semibold tabular-nums">
             {formatTime(elapsed)}
           </dd>
-          <dt className="text-[var(--color-modal-subtext)] text-right">Score</dt>
-          <dd className="text-left font-semibold">{game.score}</dd>
+          <dt className="text-[var(--color-modal-subtext)] text-right">Endscore</dt>
+          <dd className="text-left font-semibold tabular-nums">{totalScore}</dd>
+          <dt className="text-[var(--color-modal-subtext)] text-right">Basis</dt>
+          <dd className="text-left font-semibold tabular-nums">{game.score}</dd>
+          <dt className="text-[var(--color-modal-subtext)] text-right">Zeitbonus</dt>
+          <dd className="text-left font-semibold tabular-nums">+{bonus}</dd>
           <dt className="text-[var(--color-modal-subtext)] text-right">Züge</dt>
           <dd className="text-left font-semibold">{game.moveCount}</dd>
         </dl>

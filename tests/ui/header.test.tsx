@@ -60,6 +60,13 @@ describe("Header", () => {
     expect(state.hint !== null || state.gameOverOpen).toBe(true);
   });
 
+  it("opens the new-game options popover", () => {
+    render(<Header onOpenStats={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Spieloptionen" }));
+    expect(screen.getByRole("menu")).toBeTruthy();
+    expect(screen.getByText("Spielmodus")).toBeTruthy();
+  });
+
   it("stats button triggers the onOpenStats callback", () => {
     const onOpenStats = vi.fn();
     render(<Header onOpenStats={onOpenStats} />);

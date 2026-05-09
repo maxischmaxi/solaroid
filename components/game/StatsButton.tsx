@@ -52,15 +52,16 @@ export function StatsButton({ onClick }: Props) {
 
   return (
     <button
+      type="button"
       onClick={onClick}
       aria-label={title}
       title={title}
-      className="relative ml-1 sm:ml-2 inline-flex items-center justify-center min-h-10 min-w-10 px-2.5 sm:px-3 py-1.5 rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)] shadow text-white"
+      className="relative ml-1 sm:ml-2 inline-flex items-center justify-center min-h-10 min-w-10 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 px-2.5 sm:px-3.5 py-1.5 text-white ring-1 ring-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_8px_18px_rgba(0,0,0,0.18)] transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
     >
       <StatsIcon />
       {showBadge && (
         <span
-          className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full text-[10px] font-bold leading-none bg-orange-500 text-white shadow ring-2 ring-[var(--color-felt-dark)] tabular-nums"
+          className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 text-[10px] font-bold leading-none text-white shadow-lg ring-2 ring-[var(--color-felt-dark)] tabular-nums"
           aria-hidden="true"
         >
           {/* Flame + count is more iconic than just a number; keep it terse so

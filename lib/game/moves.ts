@@ -181,9 +181,9 @@ export function tryApplyMove(
   }
   switch (intent.kind) {
     case "draw":
-      return drawFromStock(state);
+      return drawFromStock(state, nowMs);
     case "recycle":
-      return recycleWaste(state);
+      return recycleWaste(state, nowMs);
     case "move":
       return applyPileMove(state, intent.from, intent.to, intent.cardId, nowMs);
     case "autoMoveToFoundation": {

@@ -169,9 +169,9 @@ export function GameShell() {
   // While the cascade is still running we let the player enjoy the cards
   // bouncing across the felt before the score panel covers them.
   useEffect(() => {
-    if (gameStatus === "won" && !winFinalePlaying) {
-      setWinOpen(true);
-    }
+    if (gameStatus !== "won" || winFinalePlaying) return;
+    const id = window.setTimeout(() => setWinOpen(true), 0);
+    return () => window.clearTimeout(id);
   }, [gameStatus, winFinalePlaying]);
 
   // Auto-trigger auto-complete when eligible — always on, except while

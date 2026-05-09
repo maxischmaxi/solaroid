@@ -350,22 +350,26 @@ export function NewGameButton({
   }
 
   const activeTheme = THEMES[themeId];
+  const primaryButtonClass =
+    "inline-flex items-center justify-center min-h-10 bg-gradient-to-b from-[var(--color-btn-primary-hover)] to-[var(--color-btn-primary)] hover:from-[var(--color-btn-primary-hover)] hover:to-[var(--color-btn-primary-active)] active:to-[var(--color-btn-primary-active)] py-1.5 text-sm font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_8px_18px_rgba(0,0,0,0.2)] text-white transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60";
 
   return (
-    <div className={`relative ${fullWidth ? "w-full" : ""}`} ref={menuRef}>
+    <div className={`relative z-20 ${fullWidth ? "w-full" : ""}`} ref={menuRef}>
       <div className={`flex ${fullWidth ? "w-full" : ""}`}>
         <button
+          type="button"
           onClick={() => {
             newGame();
             onAfterStart?.();
           }}
-          className={`inline-flex items-center justify-center min-h-10 rounded-l bg-[var(--color-btn-primary)] hover:bg-[var(--color-btn-primary-hover)] active:bg-[var(--color-btn-primary-active)] px-3 py-1.5 text-sm font-medium shadow text-white ${fullWidth ? "flex-1 text-center" : ""}`}
+          className={`${primaryButtonClass} rounded-l-xl px-3.5 ${fullWidth ? "flex-1 text-center" : ""}`}
         >
           {label}
         </button>
         <button
+          type="button"
           onClick={() => setMenuOpen((o) => !o)}
-          className="inline-flex items-center justify-center min-h-10 rounded-r bg-[var(--color-btn-primary)] hover:bg-[var(--color-btn-primary-hover)] active:bg-[var(--color-btn-primary-active)] px-2 py-1.5 shadow border-l border-[var(--color-btn-primary-border)] text-white"
+          className={`${primaryButtonClass} rounded-r-xl px-2.5 border-l border-white/15`}
           aria-label="Spieloptionen"
           aria-expanded={menuOpen}
           aria-haspopup="menu"

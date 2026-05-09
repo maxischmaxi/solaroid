@@ -39,25 +39,28 @@ function IconBtn({
   children,
 }: IconBtnProps) {
   const palette = {
-    secondary:
-      "bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)]",
-    hint: "bg-[var(--color-btn-hint)] hover:bg-[var(--color-btn-hint-hover)] active:bg-[var(--color-btn-hint-active)]",
-    auto: "bg-[var(--color-btn-hint)] hover:bg-[var(--color-btn-hint-hover)]",
+    secondary: "bg-white/10 hover:bg-white/20 active:bg-white/25 ring-white/15",
+    hint: "bg-amber-400/20 hover:bg-amber-400/30 active:bg-amber-400/35 ring-amber-200/25 text-amber-50",
+    auto: "bg-emerald-400/20 hover:bg-emerald-400/30 active:bg-emerald-400/35 ring-emerald-200/25 text-emerald-50",
   }[variant];
 
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       title={shortcut ? `${label} (${shortcut})` : label}
       aria-label={label}
       aria-keyshortcuts={shortcut}
       className={[
-        "inline-flex items-center justify-center gap-1.5",
+        "relative inline-flex items-center justify-center gap-1.5 overflow-hidden",
         // Touch-target floor: 40px tall, 40px wide on icon-only mobile state.
-        "min-h-10 min-w-10 px-2.5 sm:px-3 py-1.5",
-        "rounded font-medium shadow text-white",
-        "disabled:opacity-50 disabled:pointer-events-none",
+        "min-h-10 min-w-10 px-2.5 sm:px-3.5 py-1.5",
+        "rounded-xl font-semibold text-white ring-1",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_8px_18px_rgba(0,0,0,0.18)]",
+        "transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+        "disabled:opacity-40 disabled:pointer-events-none disabled:hover:translate-y-0",
         palette,
         pulse ? "animate-pulse" : "",
       ].join(" ")}
@@ -195,10 +198,10 @@ export function Header({ onOpenStats }: HeaderProps) {
 
   return (
     <header
-      className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 text-white"
+      className="relative z-50 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 text-white"
       style={{ minHeight: 56 }}
     >
-      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+      <div className="relative z-10 flex items-center gap-1 sm:gap-1.5 min-w-0 rounded-2xl bg-black/15 ring-1 ring-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-md p-1">
         <NewGameButton />
         <IconBtn
           onClick={undo}

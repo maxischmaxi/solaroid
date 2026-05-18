@@ -20,6 +20,19 @@ function formatTime(ms: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function ScoreTile({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="ui-stat-tile p-3 text-left">
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-modal-subtext)]">
+        {label}
+      </div>
+      <div className="mt-1 text-lg font-semibold tabular-nums leading-none">
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export function WinModal({ open, onClose }: Props) {
   const game = useGameStore((s) => s.game);
 
@@ -49,31 +62,47 @@ export function WinModal({ open, onClose }: Props) {
 
   return (
     <Modal open={open} onClose={onClose} title="Gewonnen!">
-      <div className="space-y-3 text-center">
-        <p className="text-3xl">🎉</p>
-        <p className="text-[var(--color-modal-subtext)]">
-          Bravo, du hast das Spiel gemeistert.
+      <div className="flex flex-col items-center text-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400/15 text-4xl ring-1 ring-amber-500/25">
+          🎉
+        </div>
+        <h3 className="text-xl font-semibold tracking-tight">
+          Sauber abgeschlossen
+        </h3>
+        <p className="mt-2 max-w-xs text-sm leading-6 text-[var(--color-modal-subtext)]">
+          Alle Karten liegen auf den Foundations. Hier ist dein Ergebnis für
+          diese Runde.
         </p>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mt-4">
-          <dt className="text-[var(--color-modal-subtext)] text-right">Zeit</dt>
-          <dd className="text-left font-semibold tabular-nums">
-            {formatTime(elapsed)}
-          </dd>
-          <dt className="text-[var(--color-modal-subtext)] text-right">Endscore</dt>
-          <dd className="text-left font-semibold tabular-nums">{totalScore}</dd>
-          <dt className="text-[var(--color-modal-subtext)] text-right">Basis</dt>
-          <dd className="text-left font-semibold tabular-nums">{game.score}</dd>
-          <dt className="text-[var(--color-modal-subtext)] text-right">Zeitbonus</dt>
-          <dd className="text-left font-semibold tabular-nums">+{bonus}</dd>
-          <dt className="text-[var(--color-modal-subtext)] text-right">Züge</dt>
-          <dd className="text-left font-semibold">{game.moveCount}</dd>
-        </dl>
-        <div className="mt-4">
+
+        <div className="ui-stat-tile ui-stat-tile-accent mt-5 w-full p-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-modal-subtext)]">
+            Endscore
+          </div>
+          <div className="mt-1 text-4xl font-semibold tracking-tight tabular-nums">
+            {totalScore.toLocaleString("de-DE")}
+          </div>
+        </div>
+
+        <div className="mt-3 grid w-full grid-cols-2 gap-2">
+          <ScoreTile label="Zeit" value={formatTime(elapsed)} />
+          <ScoreTile label="Züge" value={game.moveCount} />
+          <ScoreTile label="Basis" value={game.score} />
+          <ScoreTile label="Zeitbonus" value={`+${bonus}`} />
+        </div>
+
+        <div className="mt-6 flex w-full flex-col gap-2">
           <NewGameButton
             label="Neues Spiel"
             fullWidth
             onAfterStart={onClose}
           />
+          <button
+            type="button"
+            onClick={onClose}
+            className="ui-control ui-control-modal-secondary ui-control-full h-10"
+          >
+            Brett ansehen
+          </button>
         </div>
       </div>
     </Modal>

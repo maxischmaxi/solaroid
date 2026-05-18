@@ -49,10 +49,8 @@ function StatTile({
   return (
     <div
       className={[
-        "flex flex-col gap-0.5 p-3 rounded-lg ring-1",
-        accent
-          ? "bg-[var(--color-btn-primary)]/10 ring-[var(--color-btn-primary)]/20"
-          : "bg-[var(--color-modal-border)]/40 ring-[var(--color-modal-border)]",
+        "ui-stat-tile flex flex-col gap-0.5 p-3",
+        accent ? "ui-stat-tile-accent" : "",
       ].join(" ")}
     >
       <span className="text-[10px] uppercase tracking-wider text-[var(--color-modal-subtext)]">
@@ -86,7 +84,7 @@ function FlameIcon({ className }: { className?: string }) {
 function StreakBanner({ stats }: { stats: Stats }) {
   if (stats.currentStreak <= 0) {
     return (
-      <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-modal-border)]/40 ring-1 ring-[var(--color-modal-border)]">
+      <div className="ui-stat-tile flex items-center gap-3 p-3">
         <div className="text-[var(--color-modal-subtext)]">
           <FlameIcon className="w-6 h-6 opacity-50" />
         </div>
@@ -100,7 +98,7 @@ function StreakBanner({ stats }: { stats: Stats }) {
     );
   }
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-orange-500/15 via-amber-400/10 to-transparent ring-1 ring-orange-500/30">
+    <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-orange-500/15 via-amber-400/10 to-transparent p-3 ring-1 ring-orange-500/30">
       <FlameIcon className="w-7 h-7 text-orange-500 drop-shadow-sm" />
       <div className="flex-1">
         <div className="text-sm font-semibold">
@@ -183,7 +181,7 @@ export function StatsModal({ open, onClose }: Props) {
       open={open}
       onClose={onClose}
       title="Statistik"
-      maxWidthClass="max-w-md"
+      maxWidthClass="max-w-lg"
     >
       {confirmReset ? (
         <div className="flex flex-col gap-3 py-2">
@@ -194,17 +192,19 @@ export function StatsModal({ open, onClose }: Props) {
           </p>
           <div className="flex gap-2 mt-2">
             <button
+              type="button"
               onClick={() => setConfirmReset(false)}
-              className="flex-1 min-h-11 rounded bg-[var(--color-btn-modal-secondary-bg)] hover:bg-[var(--color-btn-modal-secondary-hover)] text-[var(--color-btn-modal-secondary-text)] font-medium"
+              className="ui-control ui-control-modal-secondary h-9 flex-1"
             >
               Abbrechen
             </button>
             <button
+              type="button"
               onClick={() => {
                 reset();
                 setConfirmReset(false);
               }}
-              className="flex-1 min-h-11 rounded bg-rose-600 hover:bg-rose-700 text-white font-medium"
+              className="ui-control ui-control-danger h-9 flex-1"
             >
               Zurücksetzen
             </button>
@@ -251,22 +251,24 @@ export function StatsModal({ open, onClose }: Props) {
               <SectionHeading>Score-Verlauf</SectionHeading>
               <LatestGamePill game={lastGame} />
             </div>
-            <Sparkline
-              data={scoreSeries}
-              width={400}
-              height={70}
-              yMin={0}
-              emptyLabel="Spiele beenden, um den Verlauf zu sehen"
-            />
-            {scoreSeries.length > 0 && (
-              <div className="text-[10px] text-[var(--color-modal-subtext)] text-center">
-                Letzte{" "}
-                {scoreSeries.length === 1
-                  ? "Partie"
-                  : `${scoreSeries.length} Partien`}{" "}
-                · älter ← → neuer
-              </div>
-            )}
+            <div className="ui-chart-card">
+              <Sparkline
+                data={scoreSeries}
+                width={400}
+                height={70}
+                yMin={0}
+                emptyLabel="Spiele beenden, um den Verlauf zu sehen"
+              />
+              {scoreSeries.length > 0 && (
+                <div className="mt-2 text-center text-[10px] text-[var(--color-modal-subtext)]">
+                  Letzte{" "}
+                  {scoreSeries.length === 1
+                    ? "Partie"
+                    : `${scoreSeries.length} Partien`}{" "}
+                  · älter ← → neuer
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ----- Mode comparison ----- */}
@@ -304,8 +306,9 @@ export function StatsModal({ open, onClose }: Props) {
 
           <div className="flex justify-end pt-1 border-t border-[var(--color-modal-border)]">
             <button
+              type="button"
               onClick={() => setConfirmReset(true)}
-              className="inline-flex items-center justify-center min-h-10 px-3 py-2 mt-3 text-xs rounded text-rose-600 hover:bg-rose-600/10 active:bg-rose-600/20 font-medium"
+              className="ui-control ui-control-quiet mt-3 h-9 px-3 py-2 text-xs text-rose-600"
             >
               Statistik zurücksetzen
             </button>

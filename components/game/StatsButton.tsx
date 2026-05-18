@@ -10,7 +10,7 @@ interface Props {
 function StatsIcon() {
   return (
     <svg
-      className="w-4 h-4 sm:w-[18px] sm:h-[18px]"
+      className="h-4 w-4 sm:h-5 sm:w-5"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -56,12 +56,12 @@ export function StatsButton({ onClick }: Props) {
       onClick={onClick}
       aria-label={title}
       title={title}
-      className="relative ml-1 sm:ml-2 inline-flex items-center justify-center min-h-10 min-w-10 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 px-2.5 sm:px-3.5 py-1.5 text-white ring-1 ring-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_8px_18px_rgba(0,0,0,0.18)] transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+      className="ui-control ui-control-secondary relative ml-1 h-9 min-w-9 rounded-md px-3 py-0 text-white sm:ml-2"
     >
       <StatsIcon />
       {showBadge && (
         <span
-          className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 text-[10px] font-bold leading-none text-white shadow-lg ring-2 ring-[var(--color-felt-dark)] tabular-nums"
+          className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gradient-to-b from-orange-400 to-orange-600 px-1 text-[10px] font-bold leading-none text-white shadow-lg ring-2 ring-[var(--color-felt-dark)] tabular-nums"
           aria-hidden="true"
         >
           {/* Flame + count is more iconic than just a number; keep it terse so

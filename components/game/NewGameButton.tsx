@@ -124,21 +124,17 @@ function ThemeTile({
   const t = THEMES[themeId];
   return (
     <button
+      type="button"
       onClick={onSelect}
       role="radio"
       aria-checked={active}
       aria-label={`Thema ${t.label}`}
-      className={[
-        "group relative flex flex-col gap-1.5 p-1.5 rounded-lg ring-1 transition-colors",
-        active
-          ? "ring-2 ring-[var(--color-active)] bg-[var(--color-dropdown-hover)]"
-          : "ring-[var(--color-dropdown-border)] hover:bg-[var(--color-dropdown-hover)]",
-      ].join(" ")}
+      className="ui-choice group relative flex flex-col gap-1.5 rounded-md p-1.5"
     >
       {/* Felt panel with three mini-cards: back + red + black so each theme's
          palette is visible at a glance. */}
       <div
-        className="relative w-full overflow-hidden rounded-md flex items-end justify-center pb-1"
+        className="relative flex w-full items-end justify-center overflow-hidden rounded-lg pb-1"
         style={{
           background: t.board.felt,
           height: 48,
@@ -199,18 +195,16 @@ function DrawModeTile({
 }) {
   return (
     <button
+      type="button"
       onClick={onSelect}
       role="radio"
       aria-checked={active}
       aria-label={label}
       className={[
-        "flex flex-col items-center gap-2 p-3 rounded-lg ring-1 transition-colors",
-        active
-          ? "ring-2 ring-[var(--color-active)] bg-[var(--color-dropdown-hover)]"
-          : "ring-[var(--color-dropdown-border)] hover:bg-[var(--color-dropdown-hover)]",
+        "ui-choice flex flex-col items-center gap-2 rounded-md p-3",
       ].join(" ")}
     >
-      <div className="relative h-[58px] w-[68px] flex items-end justify-center">
+      <div className="relative flex h-14 w-17 items-end justify-center">
         {cards === 1 ? (
           <MiniCard theme={theme} variant="red" width={36} height={50} />
         ) : (
@@ -261,15 +255,13 @@ function RedealPill({
 }) {
   return (
     <button
+      type="button"
       onClick={onSelect}
       role="radio"
       aria-checked={active}
       aria-label={long}
       className={[
-        "flex flex-col items-center gap-0.5 px-2 py-2 rounded-lg ring-1 transition-colors",
-        active
-          ? "ring-2 ring-[var(--color-active)] bg-[var(--color-dropdown-hover)]"
-          : "ring-[var(--color-dropdown-border)] hover:bg-[var(--color-dropdown-hover)]",
+        "ui-choice flex flex-col items-center gap-0.5 rounded-md px-2 py-2",
       ].join(" ")}
     >
       <span className="text-base font-semibold tabular-nums text-white">
@@ -285,9 +277,7 @@ function RedealPill({
 /** Section heading used to separate the four groups inside the popover. */
 function GroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-dropdown-subtext)]">
-      {children}
-    </div>
+    <div className="ui-section-label">{children}</div>
   );
 }
 
@@ -351,7 +341,7 @@ export function NewGameButton({
 
   const activeTheme = THEMES[themeId];
   const primaryButtonClass =
-    "inline-flex items-center justify-center min-h-10 bg-gradient-to-b from-[var(--color-btn-primary-hover)] to-[var(--color-btn-primary)] hover:from-[var(--color-btn-primary-hover)] hover:to-[var(--color-btn-primary-active)] active:to-[var(--color-btn-primary-active)] py-1.5 text-sm font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_8px_18px_rgba(0,0,0,0.2)] text-white transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60";
+    "ui-control ui-control-primary h-9 py-0 text-sm text-white";
 
   return (
     <div className={`relative z-20 ${fullWidth ? "w-full" : ""}`} ref={menuRef}>
@@ -362,20 +352,20 @@ export function NewGameButton({
             newGame();
             onAfterStart?.();
           }}
-          className={`${primaryButtonClass} rounded-l-xl px-3.5 ${fullWidth ? "flex-1 text-center" : ""}`}
+          className={`${primaryButtonClass} ui-control-split-left px-3.5 ${fullWidth ? "flex-1 text-center" : ""}`}
         >
           {label}
         </button>
         <button
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
-          className={`${primaryButtonClass} rounded-r-xl px-2.5 border-l border-white/15`}
+          className={`${primaryButtonClass} ui-control-split-right border-l border-white/15`}
           aria-label="Spieloptionen"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
         >
           <svg
-            className={`w-3.5 h-3.5 transition-transform ${menuOpen ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 transition-transform ${menuOpen ? "rotate-180" : ""}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -392,22 +382,20 @@ export function NewGameButton({
 
       {menuOpen && (
         <div
-          className="absolute left-0 top-full mt-1.5 z-50 w-[min(22rem,calc(100vw-1rem))] max-h-[min(80vh,40rem)] overflow-y-auto rounded-xl bg-[var(--color-dropdown-bg)] border border-[var(--color-dropdown-border)] shadow-2xl text-sm text-white"
+          className="ui-menu-panel absolute left-0 top-full z-50 mt-2 max-h-[min(80vh,40rem)] w-[min(22rem,calc(100vw-1rem))] overflow-y-auto p-1 text-sm text-white"
           role="menu"
         >
           {/* ---------- Spielmodus ---------- */}
           <GroupLabel>Spielmodus</GroupLabel>
-          <div className="px-3 grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5 px-2">
             {(["random", "winnable", "daily"] as const).map((dt) => (
               <button
                 key={dt}
+                type="button"
                 onClick={() => startGame(dt)}
-                className={[
-                  "flex flex-col items-start gap-0.5 px-2.5 py-2 rounded-lg ring-1 transition-colors text-left",
-                  dealType === dt
-                    ? "ring-2 ring-[var(--color-active)] bg-[var(--color-dropdown-hover)]"
-                    : "ring-[var(--color-dropdown-border)] hover:bg-[var(--color-dropdown-hover)]",
-                ].join(" ")}
+                role="menuitemradio"
+                aria-checked={dealType === dt}
+                className="ui-choice flex flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left"
               >
                 <span className="text-xs font-semibold leading-tight">
                   {DEAL_TYPE_LABELS[dt]}
@@ -418,13 +406,14 @@ export function NewGameButton({
               </button>
             ))}
           </div>
-          <div className="px-3 pt-1.5 pb-2">
+          <div className="px-2 pb-2 pt-1.5">
             <button
+              type="button"
               onClick={() => startGame("replay")}
-              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 min-h-10 rounded-lg ring-1 ring-[var(--color-dropdown-border)] hover:bg-[var(--color-dropdown-hover)] transition-colors text-xs font-medium"
+              className="ui-choice inline-flex h-9 w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-medium"
             >
               <svg
-                className="w-4 h-4"
+                className="h-4 w-4"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -445,7 +434,7 @@ export function NewGameButton({
           {/* ---------- Karten ziehen ---------- */}
           <GroupLabel>Karten ziehen</GroupLabel>
           <div
-            className="px-3 pb-2 grid grid-cols-2 gap-2"
+            className="grid grid-cols-2 gap-2 px-2 pb-2"
             role="radiogroup"
             aria-label="Karten ziehen"
           >
@@ -470,7 +459,7 @@ export function NewGameButton({
           {/* ---------- Redeals ---------- */}
           <GroupLabel>Redeals</GroupLabel>
           <div
-            className="px-3 pb-2 grid grid-cols-4 gap-1.5"
+            className="grid grid-cols-4 gap-1.5 px-2 pb-2"
             role="radiogroup"
             aria-label="Erlaubte Redeals"
           >
@@ -517,7 +506,7 @@ export function NewGameButton({
           {/* ---------- Thema ---------- */}
           <GroupLabel>Thema</GroupLabel>
           <div
-            className="px-3 pb-3 grid grid-cols-3 gap-1.5"
+            className="grid grid-cols-3 gap-1.5 px-2 pb-2"
             role="radiogroup"
             aria-label="Thema"
           >

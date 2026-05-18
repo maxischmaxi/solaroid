@@ -39,9 +39,9 @@ function IconBtn({
   children,
 }: IconBtnProps) {
   const palette = {
-    secondary: "bg-white/10 hover:bg-white/20 active:bg-white/25 ring-white/15",
-    hint: "bg-amber-400/20 hover:bg-amber-400/30 active:bg-amber-400/35 ring-amber-200/25 text-amber-50",
-    auto: "bg-emerald-400/20 hover:bg-emerald-400/30 active:bg-emerald-400/35 ring-emerald-200/25 text-emerald-50",
+    secondary: "ui-control-secondary",
+    hint: "ui-control-hint text-amber-50",
+    auto: "ui-control-auto text-emerald-50",
   }[variant];
 
   return (
@@ -53,14 +53,11 @@ function IconBtn({
       aria-label={label}
       aria-keyshortcuts={shortcut}
       className={[
-        "relative inline-flex items-center justify-center gap-1.5 overflow-hidden",
-        // Touch-target floor: 40px tall, 40px wide on icon-only mobile state.
-        "min-h-10 min-w-10 px-2.5 sm:px-3.5 py-1.5",
-        "rounded-xl font-semibold text-white ring-1",
-        "shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_8px_18px_rgba(0,0,0,0.18)]",
-        "transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
-        "disabled:opacity-40 disabled:pointer-events-none disabled:hover:translate-y-0",
+        "ui-control",
+        // shadcn-like default/icon sizing.
+        "h-9 min-w-9 px-3 py-0",
+        "rounded-md text-white",
+        "disabled:pointer-events-none",
         palette,
         pulse ? "animate-pulse" : "",
       ].join(" ")}
@@ -75,7 +72,7 @@ function IconBtn({
   );
 }
 
-const ICON_CLASS = "w-4 h-4 sm:w-[18px] sm:h-[18px]";
+const ICON_CLASS = "h-4 w-4 sm:h-5 sm:w-5";
 
 function UndoIcon() {
   return (
@@ -198,10 +195,10 @@ export function Header({ onOpenStats }: HeaderProps) {
 
   return (
     <header
-      className="relative z-50 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 text-white"
-      style={{ minHeight: 56 }}
+      className="relative z-50 flex items-center gap-1.5 px-2 py-2 text-white sm:gap-2 sm:px-3"
+      style={{ minHeight: 58 }}
     >
-      <div className="relative z-10 flex items-center gap-1 sm:gap-1.5 min-w-0 rounded-2xl bg-black/15 ring-1 ring-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-md p-1">
+      <div className="relative z-10 flex min-w-0 items-center gap-1 sm:gap-1.5">
         <NewGameButton />
         <IconBtn
           onClick={undo}
@@ -242,17 +239,17 @@ export function Header({ onOpenStats }: HeaderProps) {
       {/* Spacer so the stats can flex-right while staying compact on phones. */}
       <div className="flex-1" />
 
-      <div className="flex items-center gap-2 sm:gap-3 tabular-nums text-xs sm:text-sm">
-        <div className="flex items-baseline gap-1">
-          <span className="opacity-60">⏱</span>
+      <div className="flex items-center gap-1.5 tabular-nums text-xs sm:gap-2 sm:text-sm">
+        <div className="ui-metric">
+          <span className="opacity-65" aria-hidden="true">⏱</span>
           <span className="font-semibold">{formatTime(elapsed)}</span>
         </div>
-        <div className="flex items-baseline gap-1">
-          <span className="opacity-60">★</span>
+        <div className="ui-metric">
+          <span className="opacity-65" aria-hidden="true">★</span>
           <span className="font-semibold">{score}</span>
         </div>
-        <div className="hidden sm:flex items-baseline gap-1">
-          <span className="opacity-60">Züge</span>
+        <div className="ui-metric hidden sm:inline-flex">
+          <span className="opacity-65">Züge</span>
           <span className="font-semibold">{moves}</span>
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 
 interface ModalProps {
   open: boolean;
@@ -12,6 +12,8 @@ interface ModalProps {
   children: ReactNode;
 }
 
+const EXIT_MS = 170;
+
 export function Modal({
   open,
   onClose,
@@ -19,6 +21,21 @@ export function Modal({
   maxWidthClass = "max-w-sm",
   children,
 }: ModalProps) {
+  const titleId = useId();
+  const [rendered, setRendered] = useState(open);
+
+  useEffect(() => {
+    if (open) {
+      if (rendered) return;
+      const id = window.setTimeout(() => setRendered(true), 0);
+      return () => window.clearTimeout(id);
+    }
+    if (!rendered) return;
+
+    const id = window.setTimeout(() => setRendered(false), EXIT_MS);
+    return () => window.clearTimeout(id);
+  }, [open, rendered]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -28,14 +45,25 @@ export function Modal({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!rendered) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [rendered]);
+
+  if (!open && !rendered) return null;
+
+  const state = open ? "open" : "closing";
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={title}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4"
       style={{
         // Honour iOS notches / Android nav-bars so the modal never sits under
         // the system UI.
@@ -45,35 +73,44 @@ export function Modal({
         paddingRight: "max(0.75rem, env(safe-area-inset-right))",
       }}
     >
-      <div
-        className="absolute inset-0 bg-[var(--color-modal-backdrop)]"
+      <button
+        type="button"
+        className="ui-modal-backdrop absolute inset-0 cursor-default"
+        data-state={state}
         onClick={onClose}
+        aria-label="Dialog schließen"
+        tabIndex={-1}
       />
       <div
-        className={`relative z-10 w-full ${maxWidthClass} rounded-2xl sm:rounded-lg bg-[var(--color-modal-bg)] text-[var(--color-modal-text)] shadow-2xl ring-1 ring-black/20 max-h-[calc(100dvh-1.5rem)] sm:max-h-[85dvh] overflow-hidden flex flex-col`}
+        className={`ui-modal-panel relative z-10 flex max-h-[calc(100dvh-1.5rem)] w-full ${maxWidthClass} flex-col overflow-hidden text-[var(--color-modal-text)] sm:max-h-[85dvh]`}
+        data-state={state}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-modal-border)] shrink-0">
-          <h2 className="font-semibold text-base">{title}</h2>
+        <div className="ui-modal-header flex shrink-0 items-center justify-between px-5 py-4">
+          <h2 id={titleId} className="text-base font-semibold tracking-tight">
+            {title}
+          </h2>
           <button
+            type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center min-h-10 min-w-10 -mr-1 rounded text-[var(--color-modal-close)] hover:text-[var(--color-modal-close-hover)]"
+            className="ui-control ui-control-quiet ui-modal-close -mr-2 h-9 min-w-9 rounded-md p-0"
             aria-label="Schließen"
           >
             <svg
-              className="w-5 h-5"
+              className="h-5 w-5"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth={2.2}
               strokeLinecap="round"
               strokeLinejoin="round"
+              aria-hidden="true"
             >
               <path d="M18 6 6 18" />
               <path d="m6 6 12 12" />
             </svg>
           </button>
         </div>
-        <div className="p-4 overflow-y-auto">{children}</div>
+        <div className="overflow-y-auto p-5">{children}</div>
       </div>
     </div>
   );

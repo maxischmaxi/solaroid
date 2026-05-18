@@ -15,35 +15,44 @@ export function GameOverModal({ open, onClose }: Props) {
 
   return (
     <Modal open={open} onClose={onClose} title="Spiel vorbei">
-      <div className="space-y-3 text-center">
-        <p className="text-3xl">😕</p>
-        <p className="text-[var(--color-modal-subtext)]">
-          Es gibt keine Züge mehr. Das Spiel ist vorbei.
+      <div className="flex flex-col items-center text-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500/10 text-3xl ring-1 ring-rose-500/20">
+          😕
+        </div>
+        <h3 className="text-xl font-semibold tracking-tight">
+          Keine weiteren Züge
+        </h3>
+        <p className="mt-2 max-w-xs text-sm leading-6 text-[var(--color-modal-subtext)]">
+          Das Blatt ist festgefahren. Starte sauber neu oder gehe einen Schritt
+          zurück und probiere eine andere Linie.
         </p>
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-6 flex w-full flex-col gap-2">
           <button
+            type="button"
             onClick={() => {
               newGame();
               onClose();
             }}
-            className="w-full min-h-12 rounded bg-[var(--color-btn-primary)] hover:bg-[var(--color-btn-primary-hover)] active:bg-[var(--color-btn-primary-active)] text-white font-medium py-3"
+            className="ui-control ui-control-primary ui-control-full h-10"
           >
             Neues Spiel
           </button>
           {canUndo && (
             <button
+              type="button"
               onClick={() => {
                 undo();
                 onClose();
               }}
-              className="w-full min-h-12 rounded bg-[var(--color-btn-secondary)] hover:bg-[var(--color-btn-secondary-hover)] active:bg-[var(--color-btn-secondary-active)] text-white font-medium py-3"
+              className="ui-control ui-control-modal-secondary ui-control-full h-10"
             >
               Letzten Zug zurücknehmen
             </button>
           )}
           <button
+            type="button"
             onClick={onClose}
-            className="w-full min-h-12 rounded bg-[var(--color-btn-modal-secondary-bg)] hover:bg-[var(--color-btn-modal-secondary-hover)] text-[var(--color-btn-modal-secondary-text)] font-medium py-3"
+            className="ui-control ui-control-modal-secondary ui-control-full h-10"
           >
             Schließen
           </button>

@@ -17,10 +17,7 @@ export function renderScene(
   const { layout, sprites, anims, drag, hoveredPile, winFinale } = scene;
 
   // 1. Clear to felt
-  ctx.save();
-  ctx.fillStyle = getActiveTheme().board.felt;
-  ctx.fillRect(0, 0, layout.boardW, layout.boardH);
-  ctx.restore();
+  drawFelt(ctx, layout);
 
   // 2. Empty pile slots (background placeholders)
   drawEmptySlots(ctx, layout, sprites);
@@ -59,6 +56,64 @@ export function renderScene(
 }
 
 /* ---------- Layers ---------- */
+
+function drawFelt(ctx: CanvasRenderingContext2D, layout: Layout): void {
+  const theme = getActiveTheme();
+  const { boardW, boardH } = layout;
+  const maxDim = Math.max(boardW, boardH);
+
+  ctx.save();
+  ctx.fillStyle = theme.board.felt;
+  ctx.fillRect(0, 0, boardW, boardH);
+
+  // A soft table-light glow keeps the play surface from feeling flat while
+  // remaining subtle enough that card contrast is unchanged.
+  const glow = ctx.createRadialGradient(
+    boardW * 0.22,
+    boardH * 0.02,
+    0,
+    boardW * 0.22,
+    boardH * 0.02,
+    maxDim * 0.82,
+  );
+  glow.addColorStop(0, rgba(theme.board.hoverRing, 0.12));
+  glow.addColorStop(0.46, rgba(theme.board.hoverRing, 0.035));
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, boardW, boardH);
+
+  const weaveStep = Math.max(24, layout.cardW * 0.34);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,255,255,0.028)";
+  ctx.beginPath();
+  for (let x = -boardH; x < boardW + boardH; x += weaveStep) {
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + boardH, boardH);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(0,0,0,0.035)";
+  ctx.beginPath();
+  for (let x = 0; x < boardW + boardH; x += weaveStep) {
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x - boardH, boardH);
+  }
+  ctx.stroke();
+
+  const vignette = ctx.createRadialGradient(
+    boardW / 2,
+    boardH * 0.42,
+    maxDim * 0.08,
+    boardW / 2,
+    boardH * 0.42,
+    maxDim * 0.74,
+  );
+  vignette.addColorStop(0, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, "rgba(0,0,0,0.18)");
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, boardW, boardH);
+  ctx.restore();
+}
 
 function drawEmptySlots(
   ctx: CanvasRenderingContext2D,

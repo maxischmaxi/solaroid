@@ -5,6 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useGameStore } from "@/lib/store/gameStore";
 import type { DealType } from "@/lib/game/types";
 import { CARD } from "@/lib/canvas/palette";
+import { playSound } from "@/lib/audio/sounds";
 
 const DEAL_TYPE_LABELS: Record<DealType, string> = {
   random: "Zufällig",
@@ -215,6 +216,34 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
   return <div className="ui-section-label">{children}</div>;
 }
 
+function SpeakerIcon({ muted }: { muted: boolean }) {
+  return (
+    <svg
+      className="h-4 w-4 shrink-0"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M11 5 6.5 8.5H3v7h3.5L11 19V5Z" fill="currentColor" stroke="none" />
+      {muted ? (
+        <>
+          <path d="m16 9 5 6" />
+          <path d="m21 9-5 6" />
+        </>
+      ) : (
+        <>
+          <path d="M14.5 9.5a4 4 0 0 1 0 5" />
+          <path d="M17 7a7.5 7.5 0 0 1 0 10" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 /* ------------------------------------------------------------ */
 /*  Hauptkomponente                                                */
 /* ------------------------------------------------------------ */
@@ -230,11 +259,12 @@ export function NewGameButton({
   onAfterStart,
   fullWidth,
 }: Props) {
-  const { drawMode, dealType, redealLimit } = useGameStore(
+  const { drawMode, dealType, redealLimit, soundEnabled } = useGameStore(
     useShallow((s) => ({
       drawMode: s.settings.drawMode,
       dealType: s.settings.dealType,
       redealLimit: s.settings.redealLimit,
+      soundEnabled: s.settings.soundEnabled,
     })),
   );
   const newGame = useGameStore((s) => s.newGame);
@@ -428,6 +458,49 @@ export function NewGameButton({
               short="0"
               long="Vegas"
             />
+          </div>
+
+          <div className="border-t border-[var(--color-dropdown-border)]" />
+
+          {/* ---------- Ton ---------- */}
+          <GroupLabel>Ton</GroupLabel>
+          <div className="px-2 pb-2">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={soundEnabled}
+              onClick={() => {
+                const next = !soundEnabled;
+                updateSettings({ soundEnabled: next });
+                // Audible confirmation doubles as the user gesture that
+                // unlocks the AudioContext. Menu stays open so switching
+                // back is one tap away.
+                if (next) playSound("place");
+              }}
+              className="ui-choice flex h-11 w-full items-center gap-3 rounded-lg px-3"
+            >
+              <SpeakerIcon muted={!soundEnabled} />
+              <span className="flex-1 text-left text-xs font-medium">
+                Kartengeräusche
+              </span>
+              <span className="text-[10px] text-[var(--color-dropdown-subtext)]">
+                {soundEnabled ? "An" : "Aus"}
+              </span>
+              <span
+                aria-hidden="true"
+                className={[
+                  "relative inline-flex h-4.5 w-8 shrink-0 items-center rounded-full transition-colors",
+                  soundEnabled ? "bg-brass" : "bg-ivory/20",
+                ].join(" ")}
+              >
+                <span
+                  className={[
+                    "absolute h-3.5 w-3.5 rounded-full bg-ivory-bright shadow transition-transform",
+                    soundEnabled ? "translate-x-4" : "translate-x-0.5",
+                  ].join(" ")}
+                />
+              </span>
+            </button>
           </div>
         </div>
       )}

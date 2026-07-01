@@ -206,7 +206,7 @@ function drawHintLayer(
   const radius = layout.cardW * 0.08;
   if (hint.kind === "stock") {
     drawHintRing(ctx, hint.target, radius, hint.pulse);
-    drawDrawsBadge(ctx, hint.target, hint.draws, layout.cardW);
+    drawHintBadge(ctx, layout, hint.target, hint.label);
     return;
   }
   // move: ring on source, ring on destination, ghost stack sliding between.
@@ -219,6 +219,7 @@ function drawHintLayer(
     blitSprite(ctx, sprite, hint.ghostX, hint.ghostY + i * layout.fanDown);
   }
   ctx.restore();
+  drawHintBadge(ctx, layout, hint.to, hint.label);
 }
 
 function drawHintRing(
@@ -241,27 +242,37 @@ function drawHintRing(
   ctx.restore();
 }
 
-function drawDrawsBadge(
+/**
+ * Reason badge: a compact pill under the hint's destination that says WHY
+ * this move is suggested ("Deckt eine Karte auf", "2× ziehen", …). Clamped
+ * to the board so long labels never fall off an edge column or the bottom.
+ */
+function drawHintBadge(
   ctx: CanvasRenderingContext2D,
+  layout: Layout,
   target: { x: number; y: number; w: number; h: number },
-  draws: number,
-  cardW: number,
+  text: string,
 ): void {
-  if (draws <= 0) return;
-  const text = `${draws}x`;
-  const fontSize = Math.round(cardW * 0.28);
+  if (!text) return;
+  const fontSize = Math.max(10, Math.round(layout.cardW * 0.2));
   ctx.save();
-  ctx.font = `bold ${fontSize}px ${uiFont()}`;
+  ctx.font = `600 ${fontSize}px ${uiFont()}`;
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
 
   const metrics = ctx.measureText(text);
-  const padX = fontSize * 0.45;
-  const padY = fontSize * 0.25;
+  const padX = fontSize * 0.55;
+  const padY = fontSize * 0.3;
   const bw = metrics.width + padX * 2;
   const bh = fontSize + padY * 2;
-  const bx = target.x + target.w / 2 - bw / 2;
-  const by = target.y + target.h + 6;
+  let bx = target.x + target.w / 2 - bw / 2;
+  let by = target.y + target.h + 6;
+  // Keep the pill on the felt: nudge horizontally, flip above when the
+  // destination column already touches the bottom edge.
+  bx = Math.max(4, Math.min(bx, layout.boardW - bw - 4));
+  if (by + bh > layout.boardH - 4) {
+    by = target.y - bh - 6;
+  }
 
   // Badge background
   ctx.fillStyle = BOARD.badgeBg;

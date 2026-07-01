@@ -21,6 +21,7 @@ import {
   refreshCanvasFonts,
   uiFont,
 } from "@/lib/canvas/palette";
+import { playSound } from "@/lib/audio/sounds";
 import type { WinFinaleParticle } from "@/lib/canvas/winFinale";
 import type { DragState, HintScene, Layout, Rect } from "@/lib/canvas/types";
 import { WinFinale } from "@/lib/canvas/winFinale";
@@ -369,6 +370,9 @@ export function CanvasBoard() {
         // Invalid drop: animate the dragged cards back to their source pile
         // instead of letting them teleport. The game state didn't change, so
         // the layout still reflects the pre-drag positions.
+        if (useGameStore.getState().settings.soundEnabled) {
+          playSound("undo", 0.5);
+        }
         if (!layout) return;
         const pile = layout.piles[dragSnapshot.source.pileId];
         if (!pile) return;
@@ -399,6 +403,11 @@ export function CanvasBoard() {
         requestDraw();
       },
       onDragStateChange: (next) => {
+        // A fresh grab (null → drag) gets a barely-there lift sound; pointer
+        // moves update the same drag object and stay silent.
+        if (next && !drag && useGameStore.getState().settings.soundEnabled) {
+          playSound("pickup");
+        }
         drag = next;
         requestDraw();
       },
@@ -541,6 +550,26 @@ function isFreshDeal(game: GameState): boolean {
 const HINT_GHOST_PERIOD_MS = 1300;
 const HINT_PULSE_PERIOD_MS = 800;
 
+/** Short German labels for the hint engine's reasoning — rendered as a badge
+ *  so the tip explains itself instead of just pointing. */
+const HINT_REASON_LABELS: Record<
+  NonNullable<Extract<ActiveHint["hint"], { kind: "move" }>["reason"]>,
+  string
+> = {
+  "foundation-safe": "Sicher ablegen",
+  foundation: "Auf die Foundation",
+  reveal: "Deckt eine Karte auf",
+  "empty-for-king": "Macht Platz für einen König",
+  "king-to-empty": "König auf den freien Platz",
+  "waste-unlock": "Öffnet den nächsten Zug",
+  "waste-tableau": "Bringt eine Karte ins Spiel",
+};
+
+function stockHintLabel(action: "draw" | "recycle", draws: number): string {
+  if (action === "recycle") return "Talon neu durchgehen";
+  return draws === 1 ? "1× ziehen" : `${draws}× ziehen`;
+}
+
 function pileBoxRect(layout: Layout, pileId: PileId): Rect | null {
   const pile = layout.piles[pileId];
   if (!pile) return null;
@@ -580,7 +609,14 @@ function computeHintScene(
   if (active.hint.kind === "stock") {
     const target = pileBoxRect(layout, "stock");
     if (!target) return undefined;
-    return { kind: "stock", action: active.hint.action, target, pulse, draws: active.hint.draws };
+    return {
+      kind: "stock",
+      action: active.hint.action,
+      target,
+      pulse,
+      draws: active.hint.draws,
+      label: stockHintLabel(active.hint.action, active.hint.draws),
+    };
   }
 
   // Move hint: the hinted card is the BOTTOM of a run. Walk up the source
@@ -632,5 +668,6 @@ function computeHintScene(
     ghostX: anchor.x + (slot.x - anchor.x) * t,
     ghostY: anchor.y + (slot.y - anchor.y) * t,
     pulse,
+    label: HINT_REASON_LABELS[active.hint.reason],
   };
 }

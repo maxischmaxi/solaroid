@@ -76,6 +76,7 @@ describe("findHint", () => {
       from: "tableau-2",
       to: "foundation-0",
       cardId: "hearts-1",
+      reason: "foundation-safe",
     });
   });
 
@@ -98,6 +99,7 @@ describe("findHint", () => {
       from: "waste",
       to: "foundation-0",
       cardId: "spades-1",
+      reason: "foundation-safe",
     });
   });
 
@@ -121,6 +123,7 @@ describe("findHint", () => {
       from: "tableau-0",
       to: "tableau-1",
       cardId: "clubs-13",
+      reason: "reveal",
     });
   });
 
@@ -167,6 +170,7 @@ describe("findHint", () => {
       from: "waste",
       to: "tableau-0",
       cardId: "clubs-5",
+      reason: "waste-tableau",
     });
   });
 
@@ -255,5 +259,189 @@ describe("findHint", () => {
     // stock is full of 24 cards.
     const hint = findHint(dealKlondike("seed-fresh"));
     expect(hint).not.toBeNull();
+  });
+});
+
+describe("findHint — strategy", () => {
+  it("holds back an UNSAFE foundation play when a reveal needs the card", () => {
+    // Hearts foundation is at 4, so 5♥ COULD go up — but the black
+    // foundations are empty (unsafe), and the buried 4♠ needs the 5♥ as a
+    // landing spot to flip its face-down card. The old engine sent the 5♥
+    // up and stranded the 4♠; the smart engine keeps it on the table.
+    const state = baseState({
+      foundations: foundations([
+        [card("hearts", 1), card("hearts", 2), card("hearts", 3), card("hearts", 4)],
+        [],
+        [],
+        [],
+      ]),
+      tableau: tableau([
+        [card("hearts", 5)],
+        [card("clubs", 9, false), card("spades", 4, true)],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ]),
+    });
+    expect(findHint(state)).toEqual({
+      kind: "move",
+      from: "tableau-1",
+      to: "tableau-0",
+      cardId: "spades-4",
+      reason: "reveal",
+    });
+  });
+
+  it("still plays a SAFE foundation card before a reveal move", () => {
+    // An ace can never be needed in the tableau — it always goes up first,
+    // even when a reveal move exists.
+    const state = baseState({
+      tableau: tableau([
+        [card("hearts", 1)],
+        [card("clubs", 9, false), card("spades", 4, true)],
+        [card("diamonds", 5, true)],
+        [],
+        [],
+        [],
+        [],
+      ]),
+    });
+    expect(findHint(state)).toEqual({
+      kind: "move",
+      from: "tableau-0",
+      to: "foundation-0",
+      cardId: "hearts-1",
+      reason: "foundation-safe",
+    });
+  });
+
+  it("attacks the column with the most face-down cards first", () => {
+    // Both red 8s can land on the 9♠, but tableau-0 hides three cards while
+    // tableau-1 hides only one — free the bigger prison first.
+    const state = baseState({
+      tableau: tableau([
+        [
+          card("clubs", 2, false),
+          card("clubs", 3, false),
+          card("clubs", 4, false),
+          card("hearts", 8, true),
+        ],
+        [card("diamonds", 2, false), card("diamonds", 8, true)],
+        [card("spades", 9, true)],
+        [],
+        [],
+        [],
+        [],
+      ]),
+    });
+    expect(findHint(state)).toEqual({
+      kind: "move",
+      from: "tableau-0",
+      to: "tableau-2",
+      cardId: "hearts-8",
+      reason: "reveal",
+    });
+  });
+
+  it("prefers drawing over parking a waste card that unlocks nothing", () => {
+    // 5♣ fits on the 6♥ but achieves nothing there; the stock holds an ace
+    // one click away. The old engine parked the 5♣ — the classic trap.
+    const state = baseState({
+      tableau: tableau([
+        [card("hearts", 6, true)],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ]),
+      waste: {
+        id: "waste",
+        kind: "waste",
+        cards: [card("clubs", 5, true)],
+      },
+      stock: {
+        id: "stock",
+        kind: "stock",
+        cards: [card("diamonds", 1, false)],
+      },
+    });
+    expect(findHint(state)).toEqual({ kind: "stock", action: "draw", draws: 1 });
+  });
+
+  it("plays a waste card that unlocks a reveal, even with a draw available", () => {
+    // 5♣ onto the 6♥ lets the buried 4♦ land on it next — that unlock
+    // outranks drawing for the ace.
+    const state = baseState({
+      tableau: tableau([
+        [card("hearts", 6, true)],
+        [card("spades", 9, false), card("diamonds", 4, true)],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ]),
+      waste: {
+        id: "waste",
+        kind: "waste",
+        cards: [card("clubs", 5, true)],
+      },
+      stock: {
+        id: "stock",
+        kind: "stock",
+        cards: [card("diamonds", 1, false)],
+      },
+    });
+    expect(findHint(state)).toEqual({
+      kind: "move",
+      from: "waste",
+      to: "tableau-0",
+      cardId: "clubs-5",
+      reason: "waste-unlock",
+    });
+  });
+
+  it("clears a fully face-up column when a king is waiting for the space", () => {
+    // tableau-0 is fully face-up and fits onto the 8♠; the K♦ in tableau-1
+    // sits on a face-down card and needs an empty column.
+    const state = baseState({
+      tableau: tableau([
+        [card("hearts", 7, true), card("spades", 6, true)],
+        [card("clubs", 9, false), card("diamonds", 13, true)],
+        [card("spades", 8, true)],
+        [card("clubs", 4, true)],
+        [card("diamonds", 9, true)],
+        [card("clubs", 6, true)],
+        [card("hearts", 9, true)],
+      ]),
+    });
+    expect(findHint(state)).toEqual({
+      kind: "move",
+      from: "tableau-0",
+      to: "tableau-2",
+      cardId: "hearts-7",
+      reason: "empty-for-king",
+    });
+  });
+
+  it("does NOT clear a column when no king is waiting", () => {
+    // Same board, but the buried card in tableau-1 is a queen — clearing
+    // tableau-0 would achieve nothing, so the hint stays null.
+    const state = baseState({
+      tableau: tableau([
+        [card("hearts", 7, true), card("spades", 6, true)],
+        [card("clubs", 9, false), card("diamonds", 12, true)],
+        [card("spades", 8, true)],
+        [card("clubs", 4, true)],
+        [card("diamonds", 9, true)],
+        [card("clubs", 6, true)],
+        [card("hearts", 9, true)],
+      ]),
+    });
+    expect(findHint(state)).toBeNull();
   });
 });

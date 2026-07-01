@@ -144,7 +144,8 @@ export interface WinFinaleScene {
   launchedIds: ReadonlySet<CardId>;
 }
 
-/** Active hint overlay — pulsing rings and an optional ghost card. */
+/** Active hint overlay — pulsing rings, an optional ghost card, and a short
+ *  human-readable reason badge (the hint engine's "why"). */
 export type HintScene =
   | {
       kind: "move";
@@ -163,6 +164,8 @@ export type HintScene =
       ghostY: number;
       /** Pulse alpha 0..1 for both rings. */
       pulse: number;
+      /** Short reason label rendered as a badge at the destination. */
+      label: string;
     }
   | {
       kind: "stock";
@@ -171,6 +174,8 @@ export type HintScene =
       pulse: number;
       /** How many times the player must click the stock pile. */
       draws: number;
+      /** Short reason label rendered as a badge under the stock pile. */
+      label: string;
     };
 
 export interface Scene<S extends SpriteCacheLike> {

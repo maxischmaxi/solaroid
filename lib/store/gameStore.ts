@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { playSound, type SoundKind } from "@/lib/audio/sounds";
 import { reducedMotion } from "@/lib/canvas/reducedMotion";
 import { dealKlondike } from "@/lib/game/deal";
 import {
@@ -111,6 +112,11 @@ interface GameStore {
 const initialGame = (drawMode: DrawMode = 1): GameState =>
   dealKlondike("ssr-placeholder", drawMode);
 
+/** Play a sound only when the user hasn't switched audio off. */
+function sfx(enabled: boolean, kind: SoundKind, volume = 1): void {
+  if (enabled) playSound(kind, volume);
+}
+
 /**
  * Append a CompletedGame entry to the history and refresh the matching
  * per-mode aggregate. Pure: returns the next Stats object, never mutates.
@@ -217,6 +223,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gameOverOpen: false,
     });
     saveCurrentGame(game, []);
+    sfx(nextSettings.soundEnabled, "shuffle");
 
     // Count a game as played only when it actually finishes or when a started
     // deal is abandoned. Re-dealing a fresh untouched board must not pollute
@@ -264,6 +271,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
     saveCurrentGame(next, nextHistory);
 
+    const soundOn = get().settings.soundEnabled;
+    if (intent.kind === "draw") sfx(soundOn, "flick");
+    else if (intent.kind === "recycle") sfx(soundOn, "shuffle");
+    else sfx(soundOn, "place");
+
     if (next.status === "won") {
       get()._recordWin();
     }
@@ -290,6 +302,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hint: null,
     });
     saveCurrentGame(prev, newHistory);
+    sfx(get().settings.soundEnabled, "undo");
   },
 
   pause: () => {
@@ -390,6 +403,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           ? { ...result.state, score: cur.score }
           : result.state;
       set({ game: next });
+      // The cascade plays a quieter, further-back version of the manual
+      // place sound; recycles stay silent so the run doesn't rattle.
+      if (intent.kind !== "recycle") {
+        sfx(get().settings.soundEnabled, "place", 0.45);
+      }
       const after = totalFoundationCards(next);
       if (after > before) {
         progressedSinceLastRecycle = true;
@@ -551,6 +569,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // circuit it if prefers-reduced-motion is enabled.
     set({ stats, winFinalePlaying: true });
     saveStats(stats);
+    sfx(get().settings.soundEnabled, "win");
   },
 }));
 

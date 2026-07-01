@@ -25,6 +25,25 @@ describe("migrateAndValidate — settings", () => {
     expect(out).not.toHaveProperty("theme");
   });
 
+  it("defaults soundEnabled to true for saves that predate it", () => {
+    const legacy = {
+      drawMode: 1,
+      autoCompleteEnabled: true,
+      dealType: "random",
+      redealLimit: null,
+    };
+    const out = migrateAndValidate(1, legacy, settingsConfig);
+    expect(out).not.toBeNull();
+    expect(out!.soundEnabled).toBe(true);
+  });
+
+  it("keeps an explicitly disabled soundEnabled", () => {
+    const raw = { ...defaultSettings, soundEnabled: false };
+    const out = migrateAndValidate(1, raw, settingsConfig);
+    expect(out).not.toBeNull();
+    expect(out!.soundEnabled).toBe(false);
+  });
+
   it("rejects a future version (the caller falls back to defaults)", () => {
     const out = migrateAndValidate(9999, {}, settingsConfig);
     expect(out).toBeNull();

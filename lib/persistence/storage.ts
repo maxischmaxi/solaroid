@@ -29,6 +29,8 @@ export interface Settings {
   // Recycles allowed per game. `null` = unlimited. Common presets: 0 (Vegas,
   // single pass), 2 (classic Klondike, 3 passes), null (Microsoft, unlimited).
   redealLimit: number | null;
+  /** Quiet procedural card sounds (lib/audio/sounds.ts). */
+  soundEnabled: boolean;
 }
 
 /** Per-draw-mode aggregate so the UI can compare Draw 1 vs Draw 3. */
@@ -79,6 +81,7 @@ export const defaultSettings: Settings = {
   autoCompleteEnabled: true,
   dealType: "random",
   redealLimit: null,
+  soundEnabled: true,
 };
 
 function emptyPerMode(): PerModeStats {
@@ -214,6 +217,7 @@ export const settingsConfig: VersionedConfig<Settings> = {
       autoCompleteEnabled: merged.autoCompleteEnabled,
       dealType: merged.dealType,
       redealLimit: merged.redealLimit,
+      soundEnabled: merged.soundEnabled !== false,
     };
   },
 };

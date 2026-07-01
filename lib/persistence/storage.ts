@@ -12,7 +12,7 @@
 // changes, unit changes, etc. — and register a migrator so existing saves
 // survive the upgrade instead of silently reverting to defaults.
 
-import type { DealType, DrawMode, GameState, ThemeId } from "@/lib/game/types";
+import type { DealType, DrawMode, GameState } from "@/lib/game/types";
 
 const SETTINGS_KEY = "solitaer:settings:v1";
 const STATS_KEY = "solitaer:stats:v1";
@@ -26,7 +26,6 @@ export interface Settings {
   drawMode: DrawMode;
   autoCompleteEnabled: boolean;
   dealType: DealType;
-  theme: ThemeId;
   // Recycles allowed per game. `null` = unlimited. Common presets: 0 (Vegas,
   // single pass), 2 (classic Klondike, 3 passes), null (Microsoft, unlimited).
   redealLimit: number | null;
@@ -78,7 +77,6 @@ export interface PersistedGame {
 export const defaultSettings: Settings = {
   drawMode: 1,
   autoCompleteEnabled: true,
-  theme: "classic",
   dealType: "random",
   redealLimit: null,
 };
@@ -208,7 +206,15 @@ export const settingsConfig: VersionedConfig<Settings> = {
     // Spread-merge tolerates extra/missing fields. Any new primitive field
     // added to `defaultSettings` is picked up automatically without bumping
     // the version; only semantic changes require a migrator.
-    return { ...defaultSettings, ...data } as Settings;
+    const merged = { ...defaultSettings, ...data } as Settings;
+    // Pick only the current shape so retired fields (e.g. the old `theme`
+    // setting) don't ride along in memory and get re-persisted forever.
+    return {
+      drawMode: merged.drawMode,
+      autoCompleteEnabled: merged.autoCompleteEnabled,
+      dealType: merged.dealType,
+      redealLimit: merged.redealLimit,
+    };
   },
 };
 

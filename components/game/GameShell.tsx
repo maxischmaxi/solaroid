@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useGameStore } from "@/lib/store/gameStore";
-import { THEMES } from "@/lib/theme/themes";
 import { CanvasBoard } from "./CanvasBoard";
 import { Header } from "./Header";
 import { GameOverModal } from "@/components/modals/GameOverModal";
@@ -19,7 +18,6 @@ export function GameShell() {
     autoCompleteRunning,
     winFinalePlaying,
     gameOverOpen,
-    themeId,
     autoPausedByVisibility,
   } = useGameStore(
     useShallow((s) => ({
@@ -29,7 +27,6 @@ export function GameShell() {
       autoCompleteRunning: s.autoCompleteRunning,
       winFinalePlaying: s.winFinalePlaying,
       gameOverOpen: s.gameOverOpen,
-      themeId: s.settings.theme,
       autoPausedByVisibility: s.autoPausedByVisibility,
     })),
   );
@@ -156,15 +153,6 @@ export function GameShell() {
     };
   }, [hydrated]);
 
-  // Sync data-theme attribute on <html> and update meta theme-color.
-  useEffect(() => {
-    document.documentElement.dataset.theme = themeId;
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
-      meta.setAttribute("content", THEMES[themeId].board.felt);
-    }
-  }, [themeId]);
-
   // Open the win modal once the canvas has finished its win-finale cascade.
   // While the cascade is still running we let the player enjoy the cards
   // bouncing across the felt before the score panel covers them.
@@ -201,14 +189,14 @@ export function GameShell() {
               type="button"
               aria-label="Spiel fortsetzen"
               onClick={() => useGameStore.getState().resume()}
-              className="absolute inset-0 z-40 flex cursor-pointer flex-col items-center justify-center bg-black/60 px-6 text-center text-white backdrop-blur-md"
+              className="absolute inset-0 z-40 flex cursor-pointer flex-col items-center justify-center bg-black/60 px-6 text-center text-ivory backdrop-blur-md"
             >
               <div className="ui-toolbar flex max-w-sm flex-col items-center gap-3 rounded-3xl px-8 py-7">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20">
-                  <span className="h-6 w-1.5 rounded-full bg-white" />
-                  <span className="ml-1.5 h-6 w-1.5 rounded-full bg-white" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-ivory/10 ring-1 ring-ivory/20">
+                  <span className="h-6 w-1.5 rounded-full bg-ivory" />
+                  <span className="ml-1.5 h-6 w-1.5 rounded-full bg-ivory" />
                 </div>
-                <div className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                <div className="font-serif text-4xl font-semibold tracking-tight sm:text-5xl">
                   Pause
                 </div>
                 <div className="max-w-xs text-sm opacity-80">
@@ -223,7 +211,7 @@ export function GameShell() {
           )}
         </div>
       ) : (
-        <div className="flex-1 bg-[var(--color-felt-dark)]" />
+        <div className="flex-1" />
       )}
 
       <StatsModal open={statsOpen} onClose={() => setStatsOpen(false)} />

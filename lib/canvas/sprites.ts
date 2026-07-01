@@ -3,7 +3,7 @@
 // gradients) and we do it once per cardW×dpr combo, then blit on every frame.
 
 import { SUITS, RANKS } from "@/lib/game/constants";
-import type { CardId, Rank, Suit, ThemeId } from "@/lib/game/types";
+import type { CardId, Rank, Suit } from "@/lib/game/types";
 import {
   drawCardBack,
   drawCardFront,
@@ -21,7 +21,6 @@ export interface SpriteCache {
   cardW: number;
   cardH: number;
   dpr: number;
-  themeId: ThemeId;
 }
 
 /**
@@ -34,7 +33,6 @@ export function buildSprites(
   cardW: number,
   cardH: number,
   dpr: number,
-  themeId: ThemeId,
 ): SpriteCache {
   const faces = new Map<CardId, HTMLCanvasElement>();
 
@@ -62,7 +60,6 @@ export function buildSprites(
     cardW,
     cardH,
     dpr,
-    themeId,
   };
 }
 
@@ -111,37 +108,23 @@ function makeSprite(
 }
 
 /**
- * Return a sprite cache for the given theme, reusing a previously-built cache
- * when possible. The passed `cache` map is mutated:
- *  - If any existing entry was built for a different cardW or dpr, the whole
- *    map is cleared (every theme would need rebuilding for the new geometry
- *    anyway — keeping stale large-size canvases around just wastes memory).
- *  - If the requested themeId is already cached at the current geometry it is
- *    returned as-is. Otherwise the sprites are built and stored for next time.
- *
- * Net effect: toggling between N themes at a fixed window size costs N full
- * builds over the session instead of one per switch.
+ * Return a sprite cache for the given geometry, reusing the previous cache
+ * when card size and device pixel ratio are unchanged.
  */
 export function ensureSpriteCache(
-  cache: Map<ThemeId, SpriteCache>,
+  existing: SpriteCache | null,
   cardW: number,
   cardH: number,
   dpr: number,
-  themeId: ThemeId,
 ): SpriteCache {
-  const firstEntry = cache.values().next();
-  const first = firstEntry.done ? null : firstEntry.value;
   if (
-    first &&
-    (Math.abs(first.cardW - cardW) > 0.5 || first.dpr !== dpr)
+    existing &&
+    Math.abs(existing.cardW - cardW) <= 0.5 &&
+    existing.dpr === dpr
   ) {
-    cache.clear();
+    return existing;
   }
-  const existing = cache.get(themeId);
-  if (existing) return existing;
-  const built = buildSprites(cardW, cardH, dpr, themeId);
-  cache.set(themeId, built);
-  return built;
+  return buildSprites(cardW, cardH, dpr);
 }
 
 /** Look up the visual margin baked into a sprite (for drawImage offset). */

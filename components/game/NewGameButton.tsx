@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useGameStore } from "@/lib/store/gameStore";
-import type { DealType, ThemeId } from "@/lib/game/types";
-import { THEMES, type Theme } from "@/lib/theme/themes";
+import type { DealType } from "@/lib/game/types";
+import { CARD } from "@/lib/canvas/palette";
 
 const DEAL_TYPE_LABELS: Record<DealType, string> = {
   random: "Zufällig",
@@ -23,22 +23,22 @@ const DEAL_TYPE_BLURBS: Record<Exclude<DealType, "replay">, string> = {
 /*  Visuelle Bausteine                                            */
 /* ------------------------------------------------------------ */
 
-/** Tiny SVG card preview rendered in the colours of a given theme. Covers
- *  both the front (with a one-glyph corner index) and the back. Pure SVG so
+/** Tiny SVG card preview in the app's card colours. Covers the front (with a
+ *  one-glyph corner index) and the back with its sun medallion. Pure SVG so
  *  it inherits scaling and is dead-cheap to render in a dropdown. */
 function MiniCard({
-  theme,
   variant,
   width = 30,
   height = 42,
 }: {
-  theme: Theme;
   variant: "back" | "red" | "black";
   width?: number;
   height?: number;
 }) {
   const r = width * 0.14;
   if (variant === "back") {
+    const cx = width / 2;
+    const cy = height / 2;
     return (
       <svg
         viewBox={`0 0 ${width} ${height}`}
@@ -47,9 +47,9 @@ function MiniCard({
         aria-hidden="true"
       >
         <defs>
-          <linearGradient id={`back-${theme.id}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={theme.card.backFrom} />
-            <stop offset="100%" stopColor={theme.card.backTo} />
+          <linearGradient id="mini-back" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={CARD.backFrom} />
+            <stop offset="100%" stopColor={CARD.backTo} />
           </linearGradient>
         </defs>
         <rect
@@ -58,14 +58,33 @@ function MiniCard({
           width={width - 1}
           height={height - 1}
           rx={r}
-          fill={`url(#back-${theme.id})`}
-          stroke={theme.card.backInnerRing}
+          fill="url(#mini-back)"
+          stroke={CARD.backFrame}
           strokeWidth="0.6"
         />
+        {/* Sun medallion, reduced to rays + disc at preview size. */}
+        {Array.from({ length: 8 }, (_, i) => {
+          const a = (i * Math.PI) / 4;
+          const inner = width * 0.18;
+          const outer = width * 0.3;
+          return (
+            <line
+              key={i}
+              x1={cx + Math.cos(a) * inner}
+              y1={cy + Math.sin(a) * inner}
+              x2={cx + Math.cos(a) * outer}
+              y2={cy + Math.sin(a) * outer}
+              stroke={CARD.sun}
+              strokeWidth={width * 0.05}
+              strokeLinecap="round"
+            />
+          );
+        })}
+        <circle cx={cx} cy={cy} r={width * 0.13} fill={CARD.sun} />
       </svg>
     );
   }
-  const fg = variant === "red" ? theme.card.red : theme.card.black;
+  const fg = variant === "red" ? CARD.red : CARD.black;
   const glyph = variant === "red" ? "♥" : "♠";
   const rank = variant === "red" ? "A" : "K";
   return (
@@ -81,8 +100,8 @@ function MiniCard({
         width={width - 1}
         height={height - 1}
         rx={r}
-        fill={theme.card.cardBg}
-        stroke={theme.card.cardRing}
+        fill={CARD.cardBg}
+        stroke={CARD.cardRing}
         strokeWidth="0.6"
       />
       <text
@@ -91,7 +110,7 @@ function MiniCard({
         fill={fg}
         fontSize={width * 0.32}
         fontWeight="bold"
-        fontFamily="ui-sans-serif, system-ui"
+        fontFamily="var(--font-ui), ui-sans-serif, system-ui"
       >
         {rank}
       </text>
@@ -102,7 +121,7 @@ function MiniCard({
         fontSize={width * 0.55}
         textAnchor="middle"
         dominantBaseline="middle"
-        fontFamily="ui-sans-serif, system-ui"
+        fontFamily="var(--font-ui), ui-sans-serif, system-ui"
       >
         {glyph}
       </text>
@@ -110,87 +129,16 @@ function MiniCard({
   );
 }
 
-/** Full theme tile: a swatch of felt with three sample cards laid on top.
- *  Acts as the radio button in the theme group. */
-function ThemeTile({
-  themeId,
-  active,
-  onSelect,
-}: {
-  themeId: ThemeId;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  const t = THEMES[themeId];
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      role="radio"
-      aria-checked={active}
-      aria-label={`Thema ${t.label}`}
-      className="ui-choice group relative flex flex-col gap-1.5 rounded-md p-1.5"
-    >
-      {/* Felt panel with three mini-cards: back + red + black so each theme's
-         palette is visible at a glance. */}
-      <div
-        className="relative flex w-full items-end justify-center overflow-hidden rounded-lg pb-1"
-        style={{
-          background: t.board.felt,
-          height: 48,
-          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.05)",
-        }}
-      >
-        <div className="flex items-end gap-[3px] -mb-2">
-          <span style={{ transform: "translateY(2px) rotate(-6deg)" }}>
-            <MiniCard theme={t} variant="back" width={20} height={28} />
-          </span>
-          <span style={{ transform: "translateY(0) rotate(-2deg)" }}>
-            <MiniCard theme={t} variant="black" width={22} height={31} />
-          </span>
-          <span style={{ transform: "translateY(2px) rotate(4deg)" }}>
-            <MiniCard theme={t} variant="red" width={20} height={28} />
-          </span>
-        </div>
-      </div>
-      <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-medium text-white">{t.label}</span>
-        {active && (
-          <span
-            className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--color-active)]"
-            aria-hidden="true"
-          >
-            <svg
-              className="w-2.5 h-2.5 text-[var(--color-dropdown-bg)]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={4}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5 12l5 5L20 7" />
-            </svg>
-          </span>
-        )}
-      </div>
-    </button>
-  );
-}
-
-/** Visual radio for the draw mode: one card vs. three cards fanned out, each
- *  rendered in the user's currently active theme so the preview matches. */
+/** Visual radio for the draw mode: one card vs. three cards fanned out. */
 function DrawModeTile({
   cards,
   label,
   active,
-  theme,
   onSelect,
 }: {
   cards: 1 | 3;
   label: string;
   active: boolean;
-  theme: Theme;
   onSelect: () => void;
 }) {
   return (
@@ -200,31 +148,23 @@ function DrawModeTile({
       role="radio"
       aria-checked={active}
       aria-label={label}
-      className={[
-        "ui-choice flex flex-col items-center gap-2 rounded-md p-3",
-      ].join(" ")}
+      className="ui-choice flex flex-col items-center gap-2 rounded-lg p-3"
     >
       <div className="relative flex h-14 w-17 items-end justify-center">
         {cards === 1 ? (
-          <MiniCard theme={theme} variant="red" width={36} height={50} />
+          <MiniCard variant="red" width={36} height={50} />
         ) : (
           <div className="relative">
             {/* Three cards fanned to the right (mirrors waste-fan layout in
                the real game). */}
             <span className="absolute left-0 top-0">
-              <MiniCard theme={theme} variant="black" width={36} height={50} />
+              <MiniCard variant="black" width={36} height={50} />
             </span>
-            <span
-              className="absolute top-0"
-              style={{ left: 9 }}
-            >
-              <MiniCard theme={theme} variant="red" width={36} height={50} />
+            <span className="absolute top-0" style={{ left: 9 }}>
+              <MiniCard variant="red" width={36} height={50} />
             </span>
-            <span
-              className="absolute top-0"
-              style={{ left: 18 }}
-            >
-              <MiniCard theme={theme} variant="black" width={36} height={50} />
+            <span className="absolute top-0" style={{ left: 18 }}>
+              <MiniCard variant="black" width={36} height={50} />
             </span>
             {/* Spacer so the absolute children have a parent height. */}
             <span
@@ -234,7 +174,7 @@ function DrawModeTile({
           </div>
         )}
       </div>
-      <span className="text-xs font-medium text-white">{label}</span>
+      <span className="text-xs font-medium">{label}</span>
     </button>
   );
 }
@@ -260,13 +200,9 @@ function RedealPill({
       role="radio"
       aria-checked={active}
       aria-label={long}
-      className={[
-        "ui-choice flex flex-col items-center gap-0.5 rounded-md px-2 py-2",
-      ].join(" ")}
+      className="ui-choice flex flex-col items-center gap-0.5 rounded-lg px-2 py-2"
     >
-      <span className="text-base font-semibold tabular-nums text-white">
-        {short}
-      </span>
+      <span className="text-base font-semibold tabular-nums">{short}</span>
       <span className="text-[10px] text-[var(--color-dropdown-subtext)] leading-tight">
         {long}
       </span>
@@ -274,11 +210,9 @@ function RedealPill({
   );
 }
 
-/** Section heading used to separate the four groups inside the popover. */
+/** Section heading used to separate the groups inside the popover. */
 function GroupLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="ui-section-label">{children}</div>
-  );
+  return <div className="ui-section-label">{children}</div>;
 }
 
 /* ------------------------------------------------------------ */
@@ -296,11 +230,10 @@ export function NewGameButton({
   onAfterStart,
   fullWidth,
 }: Props) {
-  const { drawMode, dealType, themeId, redealLimit } = useGameStore(
+  const { drawMode, dealType, redealLimit } = useGameStore(
     useShallow((s) => ({
       drawMode: s.settings.drawMode,
       dealType: s.settings.dealType,
-      themeId: s.settings.theme,
       redealLimit: s.settings.redealLimit,
     })),
   );
@@ -339,9 +272,7 @@ export function NewGameButton({
     onAfterStart?.();
   }
 
-  const activeTheme = THEMES[themeId];
-  const primaryButtonClass =
-    "ui-control ui-control-primary h-9 py-0 text-sm text-white";
+  const primaryButtonClass = "ui-control ui-control-primary h-9 py-0 text-sm";
 
   return (
     <div className={`relative z-20 ${fullWidth ? "w-full" : ""}`} ref={menuRef}>
@@ -359,7 +290,7 @@ export function NewGameButton({
         <button
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
-          className={`${primaryButtonClass} ui-control-split-right border-l border-white/15`}
+          className={`${primaryButtonClass} ui-control-split-right`}
           aria-label="Spieloptionen"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
@@ -382,7 +313,7 @@ export function NewGameButton({
 
       {menuOpen && (
         <div
-          className="ui-menu-panel absolute left-0 top-full z-50 mt-2 max-h-[min(80vh,40rem)] w-[min(22rem,calc(100vw-1rem))] overflow-y-auto p-1 text-sm text-white"
+          className="ui-menu-panel absolute left-0 top-full z-50 mt-2 max-h-[min(80vh,40rem)] w-[min(22rem,calc(100vw-1rem))] overflow-y-auto p-1 text-sm text-[var(--color-dropdown-text)]"
           role="menu"
         >
           {/* ---------- Spielmodus ---------- */}
@@ -395,7 +326,7 @@ export function NewGameButton({
                 onClick={() => startGame(dt)}
                 role="menuitemradio"
                 aria-checked={dealType === dt}
-                className="ui-choice flex flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left"
+                className="ui-choice flex flex-col items-start gap-0.5 rounded-lg px-2.5 py-2 text-left"
               >
                 <span className="text-xs font-semibold leading-tight">
                   {DEAL_TYPE_LABELS[dt]}
@@ -410,7 +341,7 @@ export function NewGameButton({
             <button
               type="button"
               onClick={() => startGame("replay")}
-              className="ui-choice inline-flex h-9 w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-medium"
+              className="ui-choice inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
             >
               <svg
                 className="h-4 w-4"
@@ -442,14 +373,12 @@ export function NewGameButton({
               cards={1}
               label="1 Karte"
               active={drawMode === 1}
-              theme={activeTheme}
               onSelect={() => startGame(dealType, 1)}
             />
             <DrawModeTile
               cards={3}
               label="3 Karten"
               active={drawMode === 3}
-              theme={activeTheme}
               onSelect={() => startGame(dealType, 3)}
             />
           </div>
@@ -499,28 +428,6 @@ export function NewGameButton({
               short="0"
               long="Vegas"
             />
-          </div>
-
-          <div className="border-t border-[var(--color-dropdown-border)]" />
-
-          {/* ---------- Thema ---------- */}
-          <GroupLabel>Thema</GroupLabel>
-          <div
-            className="grid grid-cols-3 gap-1.5 px-2 pb-2"
-            role="radiogroup"
-            aria-label="Thema"
-          >
-            {(["classic", "neon", "vintage"] as const).map((t) => (
-              <ThemeTile
-                key={t}
-                themeId={t}
-                active={themeId === t}
-                onSelect={() => {
-                  updateSettings({ theme: t });
-                  setMenuOpen(false);
-                }}
-              />
-            ))}
           </div>
         </div>
       )}

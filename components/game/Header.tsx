@@ -40,8 +40,8 @@ function IconBtn({
 }: IconBtnProps) {
   const palette = {
     secondary: "ui-control-secondary",
-    hint: "ui-control-hint text-amber-50",
-    auto: "ui-control-auto text-emerald-50",
+    hint: "ui-control-hint",
+    auto: "ui-control-auto",
   }[variant];
 
   return (
@@ -54,9 +54,7 @@ function IconBtn({
       aria-keyshortcuts={shortcut}
       className={[
         "ui-control",
-        // shadcn-like default/icon sizing.
         "h-9 min-w-9 px-3 py-0",
-        "rounded-md text-white",
         "disabled:pointer-events-none",
         palette,
         pulse ? "animate-pulse" : "",
@@ -154,6 +152,40 @@ function AutoIcon() {
   );
 }
 
+const METRIC_ICON_CLASS = "h-3.5 w-3.5 opacity-60";
+
+function ClockIcon() {
+  return (
+    <svg
+      className={METRIC_ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function StarIcon() {
+  return (
+    <svg
+      className={METRIC_ICON_CLASS}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+      aria-hidden="true"
+    >
+      <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9 2.9-6z" />
+    </svg>
+  );
+}
+
 export function Header({ onOpenStats }: HeaderProps) {
   const {
     score,
@@ -195,9 +227,12 @@ export function Header({ onOpenStats }: HeaderProps) {
 
   return (
     <header
-      className="relative z-50 flex items-center gap-1.5 px-2 py-2 text-white sm:gap-2 sm:px-3"
+      className="relative z-50 flex items-center gap-1.5 px-2 py-2 sm:gap-2 sm:px-3"
       style={{ minHeight: 58 }}
     >
+      <span className="ui-wordmark mr-1 hidden select-none text-lg leading-none md:inline">
+        Solitär
+      </span>
       <div className="relative z-10 flex min-w-0 items-center gap-1 sm:gap-1.5">
         <NewGameButton />
         <IconBtn
@@ -239,17 +274,19 @@ export function Header({ onOpenStats }: HeaderProps) {
       {/* Spacer so the stats can flex-right while staying compact on phones. */}
       <div className="flex-1" />
 
-      <div className="flex items-center gap-1.5 tabular-nums text-xs sm:gap-2 sm:text-sm">
-        <div className="ui-metric">
-          <span className="opacity-65" aria-hidden="true">⏱</span>
+      <div className="flex items-center gap-1.5 text-xs sm:gap-2 sm:text-sm">
+        <div className="ui-metric" title="Zeit">
+          <ClockIcon />
           <span className="font-semibold">{formatTime(elapsed)}</span>
         </div>
-        <div className="ui-metric">
-          <span className="opacity-65" aria-hidden="true">★</span>
+        <div className="ui-metric" title="Punkte">
+          <StarIcon />
           <span className="font-semibold">{score}</span>
         </div>
-        <div className="ui-metric hidden sm:inline-flex">
-          <span className="opacity-65">Züge</span>
+        <div className="ui-metric hidden sm:inline-flex" title="Züge">
+          <span className="text-[10px] font-semibold uppercase tracking-wider opacity-60">
+            Züge
+          </span>
           <span className="font-semibold">{moves}</span>
         </div>
       </div>

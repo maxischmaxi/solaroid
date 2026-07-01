@@ -5,10 +5,9 @@
 // and SpriteCache; this module never measures DOM or queries window.
 
 import { spriteLogicalSize, spriteMargin, type SpriteCache } from "./sprites";
+import { BOARD, rgba, uiFont } from "./palette";
 import type { HintScene, Layout, Scene, WinFinaleScene } from "./types";
 import type { CardId, PileId } from "@/lib/game/types";
-import { getActiveTheme } from "@/lib/theme/activeTheme";
-import { rgba } from "@/lib/theme/themes";
 
 export function renderScene(
   ctx: CanvasRenderingContext2D,
@@ -16,8 +15,10 @@ export function renderScene(
 ): void {
   const { layout, sprites, anims, drag, hoveredPile, winFinale } = scene;
 
-  // 1. Clear to felt
-  drawFelt(ctx, layout);
+  // 1. Clear — the canvas is transparent; the felt (gradient, lamp pool,
+  //    weave, vignette) is painted by CSS on the page background so header
+  //    and board share one seamless surface.
+  ctx.clearRect(0, 0, layout.boardW, layout.boardH);
 
   // 2. Empty pile slots (background placeholders)
   drawEmptySlots(ctx, layout, sprites);
@@ -57,64 +58,6 @@ export function renderScene(
 
 /* ---------- Layers ---------- */
 
-function drawFelt(ctx: CanvasRenderingContext2D, layout: Layout): void {
-  const theme = getActiveTheme();
-  const { boardW, boardH } = layout;
-  const maxDim = Math.max(boardW, boardH);
-
-  ctx.save();
-  ctx.fillStyle = theme.board.felt;
-  ctx.fillRect(0, 0, boardW, boardH);
-
-  // A soft table-light glow keeps the play surface from feeling flat while
-  // remaining subtle enough that card contrast is unchanged.
-  const glow = ctx.createRadialGradient(
-    boardW * 0.22,
-    boardH * 0.02,
-    0,
-    boardW * 0.22,
-    boardH * 0.02,
-    maxDim * 0.82,
-  );
-  glow.addColorStop(0, rgba(theme.board.hoverRing, 0.12));
-  glow.addColorStop(0.46, rgba(theme.board.hoverRing, 0.035));
-  glow.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, boardW, boardH);
-
-  const weaveStep = Math.max(24, layout.cardW * 0.34);
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(255,255,255,0.028)";
-  ctx.beginPath();
-  for (let x = -boardH; x < boardW + boardH; x += weaveStep) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x + boardH, boardH);
-  }
-  ctx.stroke();
-
-  ctx.strokeStyle = "rgba(0,0,0,0.035)";
-  ctx.beginPath();
-  for (let x = 0; x < boardW + boardH; x += weaveStep) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x - boardH, boardH);
-  }
-  ctx.stroke();
-
-  const vignette = ctx.createRadialGradient(
-    boardW / 2,
-    boardH * 0.42,
-    maxDim * 0.08,
-    boardW / 2,
-    boardH * 0.42,
-    maxDim * 0.74,
-  );
-  vignette.addColorStop(0, "rgba(0,0,0,0)");
-  vignette.addColorStop(1, "rgba(0,0,0,0.18)");
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, boardW, boardH);
-  ctx.restore();
-}
-
 function drawEmptySlots(
   ctx: CanvasRenderingContext2D,
   layout: Layout,
@@ -145,7 +88,7 @@ function drawDropHighlight(
   const pile = layout.piles[hoveredPile];
   if (!pile) return;
   const r = pile.dropRect;
-  const { hoverRing } = getActiveTheme().board;
+  const { hoverRing } = BOARD;
   ctx.save();
   // Outer glow
   ctx.lineWidth = 6;
@@ -270,7 +213,7 @@ function drawHintLayer(
   drawHintRing(ctx, hint.from, radius, hint.pulse);
   drawHintRing(ctx, hint.to, radius, hint.pulse);
   ctx.save();
-  ctx.globalAlpha = getActiveTheme().board.hintGhostAlpha;
+  ctx.globalAlpha = BOARD.hintGhostAlpha;
   for (let i = 0; i < hint.cardIds.length; i++) {
     const sprite = sprites.faces.get(hint.cardIds[i]) ?? sprites.back;
     blitSprite(ctx, sprite, hint.ghostX, hint.ghostY + i * layout.fanDown);
@@ -284,7 +227,7 @@ function drawHintRing(
   radius: number,
   pulse: number,
 ): void {
-  const { hintRing } = getActiveTheme().board;
+  const { hintRing } = BOARD;
   // Pulse ranges 0..1 → glow alpha 0.15..0.45 and ring alpha 0.6..1.
   const glowAlpha = 0.15 + pulse * 0.3;
   const ringAlpha = 0.6 + pulse * 0.4;
@@ -305,11 +248,10 @@ function drawDrawsBadge(
   cardW: number,
 ): void {
   if (draws <= 0) return;
-  const board = getActiveTheme().board;
   const text = `${draws}x`;
   const fontSize = Math.round(cardW * 0.28);
   ctx.save();
-  ctx.font = `bold ${fontSize}px ${getActiveTheme().fonts.primary}`;
+  ctx.font = `bold ${fontSize}px ${uiFont()}`;
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
 
@@ -322,7 +264,7 @@ function drawDrawsBadge(
   const by = target.y + target.h + 6;
 
   // Badge background
-  ctx.fillStyle = board.badgeBg;
+  ctx.fillStyle = BOARD.badgeBg;
   const br = bh / 2;
   ctx.beginPath();
   const rc = ctx as CanvasRenderingContext2D & {
@@ -341,7 +283,7 @@ function drawDrawsBadge(
   ctx.fill();
 
   // Badge text
-  ctx.fillStyle = board.badgeText;
+  ctx.fillStyle = BOARD.badgeText;
   ctx.fillText(text, bx + bw / 2, by + bh / 2);
   ctx.restore();
 }

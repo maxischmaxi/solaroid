@@ -1,6 +1,25 @@
 import type { Metadata, Viewport } from "next";
+import { Fraunces, Schibsted_Grotesk } from "next/font/google";
 import "./globals.css";
 import { PwaRegister } from "@/components/PwaRegister";
+
+// Display serif with engraving-era warmth — modal titles, the wordmark, and
+// the court-card letters on the canvas. The optical-size axis keeps small
+// UI usage sturdy while large headings get the high-contrast cut.
+const fontDisplay = Fraunces({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["opsz"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+// Workhorse grotesk for buttons, metrics, and body copy.
+const fontUi = Schibsted_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-ui",
+  display: "swap",
+});
 
 const SITE_URL = "https://solaroid.de";
 
@@ -69,10 +88,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   // Match the felt under the safe-area notch so iOS doesn't draw a black band
   // above the play area when the URL bar collapses.
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0b6b3a" },
-    { media: "(prefers-color-scheme: dark)", color: "#064d27" },
-  ],
+  themeColor: "#0c4e31",
 };
 
 export default function RootLayout({
@@ -81,7 +97,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de" className="h-full antialiased" data-theme="classic">
+    <html
+      lang="de"
+      className={`${fontUi.variable} ${fontDisplay.variable} h-full antialiased`}
+    >
       <body className="min-h-dvh flex flex-col">
         {children}
         <PwaRegister />

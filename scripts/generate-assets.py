@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Generate SEO assets for Solaroid (Solitaire app).
 
+Brand: "Abendpartie" — night-time card table under a warm lamp. Deep fir
+felt, ivory cards, and the brass sun medallion on midnight blue (the app's
+signature card back). Keep in sync with lib/canvas/palette.ts.
+
 Generates:
   - app/favicon.ico          (16x16 + 32x32 + 48x48 multi-resolution)
   - app/icon.png             (192x192 PNG)
@@ -16,137 +20,162 @@ import os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APP = os.path.join(ROOT, "app")
 
-# Brand colors
-FELT_GREEN = (11, 107, 58)       # #0b6b3a
-FELT_DARK = (6, 77, 39)          # #064d27
-CARD_WHITE = (255, 255, 255)
-CARD_RED = (220, 38, 38)         # red-600
-CARD_BLACK = (30, 30, 30)
-GOLD = (255, 215, 0)
-SHADOW = (0, 0, 0, 80)
+# Brand colors (see lib/canvas/palette.ts + app/globals.css)
+FELT_HIGH = (16, 96, 60)         # #10603c
+FELT = (11, 74, 46)              # #0b4a2e
+FELT_LOW = (7, 55, 35)           # #073723
+IVORY = (250, 246, 234)          # #faf6ea
+IVORY_DIM = (246, 241, 227)      # #f6f1e3
+CARMINE = (181, 34, 55)          # #b52237
+CHARCOAL = (38, 42, 48)          # #262a30
+MIDNIGHT_HIGH = (36, 72, 124)    # #24487c
+MIDNIGHT_LOW = (21, 41, 77)      # #15294d
+BRASS = (228, 188, 98)           # #e4bc62
+BRASS_CORE = (242, 216, 148)     # #f2d894
+LAMP = (255, 213, 130)           # warm lamp light
+
+SERIF_ITALIC = "/usr/share/fonts/liberation/LiberationSerif-BoldItalic.ttf"
+SERIF = "/usr/share/fonts/liberation/LiberationSerif-Bold.ttf"
+SANS = "/usr/share/fonts/liberation/LiberationSans-Regular.ttf"
+
+
+def load_font(path, size):
+    try:
+        return ImageFont.truetype(path, size)
+    except (OSError, IOError):
+        return ImageFont.load_default()
+
+
+def draw_sun(draw, cx, cy, radius, rays=16, color=BRASS, core=BRASS_CORE):
+    """The brass sun medallion: alternating long/short rays around a disc."""
+    ray_base = radius * 0.52
+    half = 0.115  # half angular width of a ray wedge (radians)
+    for i in range(rays):
+        ang = i * 2 * math.pi / rays - math.pi / 2
+        length = radius if i % 2 == 0 else radius * 0.78
+        p1 = (cx + math.cos(ang - half) * ray_base, cy + math.sin(ang - half) * ray_base)
+        p2 = (cx + math.cos(ang) * length, cy + math.sin(ang) * length)
+        p3 = (cx + math.cos(ang + half) * ray_base, cy + math.sin(ang + half) * ray_base)
+        draw.polygon([p1, p2, p3], fill=color)
+    disc = radius * 0.38
+    draw.ellipse([cx - disc, cy - disc, cx + disc, cy + disc], fill=color)
+    core_r = radius * 0.30
+    draw.ellipse([cx - core_r, cy - core_r, cx + core_r, cy + core_r], fill=core)
+
+
+def vertical_gradient(size_wh, top, bottom):
+    """An RGB image filled with a vertical linear gradient."""
+    w, h = size_wh
+    img = Image.new("RGB", (w, h))
+    d = ImageDraw.Draw(img)
+    for y in range(h):
+        t = y / max(1, h - 1)
+        d.line(
+            [(0, y), (w, y)],
+            fill=tuple(int(a * (1 - t) + b * t) for a, b in zip(top, bottom)),
+        )
+    return img
+
+
+def rounded_mask(size_wh, radius):
+    mask = Image.new("L", size_wh, 0)
+    ImageDraw.Draw(mask).rounded_rectangle(
+        [0, 0, size_wh[0] - 1, size_wh[1] - 1], radius=radius, fill=255
+    )
+    return mask
+
+
+def card_back(size_wh, radius):
+    """The signature card back: midnight gradient, double frame, brass sun."""
+    w, h = size_wh
+    img = vertical_gradient((w, h), MIDNIGHT_HIGH, MIDNIGHT_LOW).convert("RGBA")
+    d = ImageDraw.Draw(img, "RGBA")
+    f1 = max(2, int(w * 0.055))
+    f2 = max(4, int(w * 0.10))
+    d.rounded_rectangle(
+        [f1, f1, w - f1, h - f1], radius=int(radius * 0.8),
+        outline=IVORY + (90,), width=max(1, w // 90),
+    )
+    d.rounded_rectangle(
+        [f2, f2, w - f2, h - f2], radius=int(radius * 0.6),
+        outline=IVORY + (45,), width=max(1, w // 90),
+    )
+    draw_sun(d, w / 2, h / 2, w * 0.30)
+    img.putalpha(rounded_mask((w, h), radius))
+    return img
+
+
+def card_front(size_wh, radius, pip_color, label=None, font=None):
+    """Ivory card stock with a suit-colored center pip."""
+    w, h = size_wh
+    img = Image.new("RGBA", (w, h), IVORY + (255,))
+    d = ImageDraw.Draw(img, "RGBA")
+    d.rounded_rectangle(
+        [0, 0, w - 1, h - 1], radius=radius,
+        outline=(52, 42, 26, 70), width=max(1, w // 60),
+    )
+    draw_spade(d, w / 2, h / 2 + h * 0.06, w * 0.30, pip_color)
+    if label and font:
+        d.text((w * 0.10, h * 0.045), label, fill=pip_color, font=font)
+    img.putalpha(rounded_mask((w, h), radius))
+    return img
 
 
 def draw_spade(draw, cx, cy, size, color):
     """Draw a spade (Pik) symbol centered at (cx, cy)."""
     s = size
-    # The spade shape: inverted heart on top + stem at bottom
-
-    # Top part: two circles and a triangle pointing up
-    # Triangle (pointing up)
     tri_top = cy - s * 0.5
     tri_bottom = cy + s * 0.15
-    tri_left = cx - s * 0.4
-    tri_right = cx + s * 0.4
     draw.polygon(
-        [(cx, tri_top), (tri_left, tri_bottom), (tri_right, tri_bottom)],
+        [(cx, tri_top), (cx - s * 0.4, tri_bottom), (cx + s * 0.4, tri_bottom)],
         fill=color,
     )
-
-    # Two circles at the bottom-left and bottom-right of the triangle
     r = s * 0.28
-    draw.ellipse(
-        [cx - s * 0.42 - r * 0.2, tri_bottom - r * 1.1,
-         cx - s * 0.42 - r * 0.2 + 2 * r, tri_bottom - r * 1.1 + 2 * r],
-        fill=color,
-    )
-    draw.ellipse(
-        [cx + s * 0.42 + r * 0.2 - 2 * r, tri_bottom - r * 1.1,
-         cx + s * 0.42 + r * 0.2, tri_bottom - r * 1.1 + 2 * r],
-        fill=color,
-    )
-
-    # Stem
+    for side in (-1, 1):
+        # symmetric lobes left/right of the triangle base
+        lobe_cx = cx + side * (s * 0.42 - r * 0.6)
+        draw.ellipse(
+            [lobe_cx - r, tri_bottom - r * 1.1, lobe_cx + r, tri_bottom - r * 1.1 + 2 * r],
+            fill=color,
+        )
     stem_w = s * 0.1
-    stem_top = cy + s * 0.05
-    stem_bottom = cy + s * 0.5
     draw.rectangle(
-        [cx - stem_w, stem_top, cx + stem_w, stem_bottom],
+        [cx - stem_w, cy + s * 0.05, cx + stem_w, cy + s * 0.5],
         fill=color,
     )
-
-
-def draw_card_shape(draw, x, y, w, h, radius=8, fill=CARD_WHITE, outline=None):
-    """Draw a rounded rectangle (card shape)."""
-    draw.rounded_rectangle([x, y, x + w, y + h], radius=radius, fill=fill, outline=outline)
-
-
-def draw_mini_card(draw, x, y, w, h, suit_color, radius=4):
-    """Draw a small playing card with a colored corner pip."""
-    draw_card_shape(draw, x, y, w, h, radius=radius, fill=CARD_WHITE)
-    # Small suit indicator
-    pip_size = min(w, h) * 0.3
-    pip_cx = x + w * 0.3
-    pip_cy = y + h * 0.3
-    draw.ellipse(
-        [pip_cx - pip_size / 2, pip_cy - pip_size / 2,
-         pip_cx + pip_size / 2, pip_cy + pip_size / 2],
-        fill=suit_color,
-    )
-
-
-def draw_card_back(draw, x, y, w, h, radius=4):
-    """Draw a face-down card with cross-hatch pattern."""
-    draw_card_shape(draw, x, y, w, h, radius=radius, fill=(30, 80, 50))
-    # Diamond pattern
-    draw_card_shape(draw, x + 2, y + 2, w - 4, h - 4, radius=max(1, radius - 1), fill=(20, 60, 40), outline=(40, 100, 65))
 
 
 # ---------------------------------------------------------------------------
 # FAVICON / ICON generation
 # ---------------------------------------------------------------------------
 
+SUPERSAMPLE = 4
+
+
 def generate_icon(size):
-    """Generate a square icon at the given size."""
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-
-    # Green circle background
-    margin = size * 0.06
-    draw.ellipse(
-        [margin, margin, size - margin, size - margin],
-        fill=FELT_GREEN,
-    )
-
-    # Darker ring
-    ring = size * 0.08
-    draw.ellipse(
-        [margin + ring, margin + ring, size - margin - ring, size - margin - ring],
-        fill=FELT_DARK,
-    )
-
-    # Inner felt
-    inner = size * 0.12
-    draw.ellipse(
-        [margin + inner, margin + inner, size - margin - inner, size - margin - inner],
-        fill=FELT_GREEN,
-    )
-
-    # White spade in center
-    draw_spade(draw, size / 2, size / 2, size * 0.45, CARD_WHITE)
-
-    return img
+    """App icon: the signature midnight card back with the brass sun."""
+    s = size * SUPERSAMPLE
+    img = card_back((s, s), radius=int(s * 0.22))
+    return img.resize((size, size), Image.LANCZOS)
 
 
 def generate_favicon():
     """Generate multi-resolution favicon.ico."""
     sizes = [16, 32, 48]
-    images = [generate_icon(s) for s in sizes]
-    # Save as ICO
+    images = [generate_icon(n) for n in sizes]
     path = os.path.join(APP, "favicon.ico")
     images[0].save(
         path,
         format="ICO",
-        sizes=[(s, s) for s in sizes],
+        sizes=[(n, n) for n in sizes],
         append_images=images[1:],
     )
-    print(f"  favicon.ico ({', '.join(f'{s}x{s}' for s in sizes)})")
+    print(f"  favicon.ico ({', '.join(f'{n}x{n}' for n in sizes)})")
 
 
 def generate_png_icon(filename, size):
-    """Generate a single PNG icon."""
     img = generate_icon(size)
-    path = os.path.join(APP, filename)
-    img.save(path, "PNG")
+    img.save(os.path.join(APP, filename), "PNG")
     print(f"  {filename} ({size}x{size})")
 
 
@@ -154,141 +183,106 @@ def generate_png_icon(filename, size):
 # OG / Twitter image generation
 # ---------------------------------------------------------------------------
 
+
 def generate_og_image(filename, width=1200, height=630):
-    """Generate a 1200x630 social sharing image."""
-    img = Image.new("RGB", (width, height), FELT_DARK)
-    draw = ImageDraw.Draw(img, "RGBA")
+    """1200x630 social card: felt table, card fan, serif wordmark."""
+    ss = 2  # supersample for clean edges
+    w, h = width * ss, height * ss
+    img = vertical_gradient((w, h), FELT_HIGH, FELT_LOW).convert("RGBA")
+    d = ImageDraw.Draw(img, "RGBA")
 
-    # Felt texture: subtle radial gradient
-    cx, cy = width // 2, height // 2
-    for r in range(max(width, height), 0, -3):
-        alpha = max(0, min(40, int(40 * (1 - r / max(width, height)))))
-        color = (FELT_GREEN[0], FELT_GREEN[1], FELT_GREEN[2], alpha)
-        draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=color)
+    # Warm lamp pool from the top center.
+    lamp = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(lamp)
+    steps = 46
+    max_r = int(w * 0.55)
+    for i in range(steps, 0, -1):
+        r = max_r * i / steps
+        alpha = int(34 * (1 - i / steps))
+        ld.ellipse(
+            [w / 2 - r, -r * 0.75, w / 2 + r, r * 0.75],
+            fill=LAMP + (alpha,),
+        )
+    img = Image.alpha_composite(img, lamp)
+    d = ImageDraw.Draw(img, "RGBA")
 
-    # Fill base with felt green
-    draw_img = Image.new("RGB", (width, height), FELT_DARK)
-    draw_base = ImageDraw.Draw(draw_img, "RGBA")
+    corner_font = load_font(SERIF, int(34 * ss))
 
-    # Gradient overlay
-    for y_pos in range(height):
-        t = y_pos / height
-        r = int(FELT_DARK[0] * (1 - t * 0.3) + FELT_GREEN[0] * (t * 0.3))
-        g = int(FELT_DARK[1] * (1 - t * 0.3) + FELT_GREEN[1] * (t * 0.3))
-        b = int(FELT_DARK[2] * (1 - t * 0.3) + FELT_GREEN[2] * (t * 0.3))
-        draw_base.line([(0, y_pos), (width, y_pos)], fill=(r, g, b))
+    # Left: a fan — two ivory aces and the sun-back card on top.
+    card_w, card_h = int(150 * ss), int(210 * ss)
+    fan_cx, fan_cy = int(235 * ss), int(h * 0.56)
+    fan = [
+        (card_front((card_w, card_h), int(14 * ss), CHARCOAL, "A", corner_font), -16),
+        (card_front((card_w, card_h), int(14 * ss), CARMINE, "A", corner_font), -2),
+        (card_back((card_w, card_h), int(14 * ss)), 12),
+    ]
+    for i, (card, angle) in enumerate(fan):
+        rotated = card.rotate(angle, expand=True, resample=Image.BICUBIC)
+        # Soft drop shadow: flat dark color masked by the card's own alpha.
+        shadow = Image.new("RGBA", rotated.size, (3, 14, 8, 255))
+        shadow.putalpha(rotated.getchannel("A").point(lambda a: a * 70 // 255))
+        px = fan_cx - rotated.width // 2 + i * int(46 * ss)
+        py = fan_cy - rotated.height // 2 + abs(i - 1) * int(8 * ss)
+        img.paste(shadow, (px + int(5 * ss), py + int(9 * ss)), shadow)
+        img.paste(rotated, (px, py), rotated)
+    d = ImageDraw.Draw(img, "RGBA")
 
-    img = draw_img
-    draw = ImageDraw.Draw(img, "RGBA")
-
-    # Decorative card fan on the left side
-    card_w, card_h = 120, 170
-    fan_cx, fan_cy = 250, height // 2
-
-    # Draw fanned cards (foundation-style, Ace through 4)
-    suits_colors = [CARD_RED, CARD_BLACK, CARD_RED, CARD_BLACK]
-    suit_symbols = ["A", "A", "A", "A"]
-
-    for i, (sc, sym) in enumerate(zip(suits_colors, suit_symbols)):
-        angle = -15 + i * 10
-        # Create rotated card
-        card_img = Image.new("RGBA", (card_w + 20, card_h + 20), (0, 0, 0, 0))
-        card_draw = ImageDraw.Draw(card_img)
-        draw_card_shape(card_draw, 10, 10, card_w, card_h, radius=10, fill=CARD_WHITE)
-
-        # Suit pip in center of card
-        pip_size = 30
-        pip_cx = 10 + card_w // 2
-        pip_cy = 10 + card_h // 2
-        draw_spade(card_draw, pip_cx, pip_cy, pip_size, sc)
-
-        # Corner text
-        try:
-            font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 28)
-        except (OSError, IOError):
-            font = ImageFont.load_default()
-        card_draw.text((18, 14), sym, fill=sc, font=font)
-
-        # Rotate and paste
-        rotated = card_img.rotate(angle, expand=True, resample=Image.BICUBIC)
-        paste_x = fan_cx - rotated.width // 2 + i * 30
-        paste_y = fan_cy - rotated.height // 2
-        img.paste(rotated, (paste_x, paste_y), rotated)
-
-    # Right side: cascading tableau cards
-    tab_x = width - 380
+    # Right: a small tableau cascade.
+    tab_x = w - int(370 * ss)
+    cw, ch = int(64 * ss), int(90 * ss)
     for col in range(4):
         for row in range(col + 1):
-            x = tab_x + col * 70
-            y = 120 + row * 35
+            x = tab_x + col * int(72 * ss)
+            y = int(110 * ss) + row * int(38 * ss)
             if row == col:
-                # Face up
-                draw_card_shape(draw, x, y, 60, 85, radius=6, fill=CARD_WHITE)
-                pip_color = CARD_RED if col % 2 == 0 else CARD_BLACK
-                draw_spade(draw, x + 30, y + 45, 18, pip_color)
+                pip = CARMINE if col % 2 == 0 else CHARCOAL
+                card = card_front((cw, ch), int(7 * ss), pip)
             else:
-                # Face down
-                draw_card_back(draw, x, y, 60, 85, radius=6)
+                card = card_back((cw, ch), int(7 * ss))
+            img.paste(card, (x, y), card)
+    d = ImageDraw.Draw(img, "RGBA")
 
-    # Title text: "Solitär"
-    try:
-        title_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 88)
-    except (OSError, IOError):
-        title_font = ImageFont.load_default()
-    try:
-        sub_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 32)
-    except (OSError, IOError):
-        sub_font = ImageFont.load_default()
+    # Center: the wordmark in an engraved serif italic.
+    title_font = load_font(SERIF_ITALIC, int(104 * ss))
+    sub_font = load_font(SANS, int(30 * ss))
+    tag_font = load_font(SANS, int(21 * ss))
 
     title = "Solitär"
     subtitle = "Klondike Solitaire im Browser"
+    tagline = "Draw 1  •  Draw 3  •  Kostenlos  •  Ohne Anmeldung"
 
-    # Center text
-    title_bbox = draw.textbbox((0, 0), title, font=title_font)
-    title_w = title_bbox[2] - title_bbox[0]
-    title_h = title_bbox[3] - title_bbox[1]
+    tb = d.textbbox((0, 0), title, font=title_font)
+    tw, th = tb[2] - tb[0], tb[3] - tb[1]
+    tx = (w - tw) // 2 + int(30 * ss)
+    ty = (h - th) // 2 - int(46 * ss)
+    d.text((tx + 3 * ss, ty + 3 * ss), title, fill=(0, 8, 4, 130), font=title_font)
+    d.text((tx, ty), title, fill=IVORY + (255,), font=title_font)
 
-    sub_bbox = draw.textbbox((0, 0), subtitle, font=sub_font)
-    sub_w = sub_bbox[2] - sub_bbox[0]
+    sb = d.textbbox((0, 0), subtitle, font=sub_font)
+    sw = sb[2] - sb[0]
+    sx = (w - sw) // 2 + int(30 * ss)
+    sy = ty + th + int(34 * ss)
+    d.text((sx, sy), subtitle, fill=(226, 219, 199, 235), font=sub_font)
 
-    text_x = (width - title_w) // 2 + 40
-    text_y = (height - title_h) // 2 - 30
+    # Brass sun divider under the subtitle.
+    line_w = int(120 * ss)
+    line_y = sy + int(64 * ss)
+    line_cx = (w + int(60 * ss)) // 2
+    d.line([(line_cx - line_w, line_y), (line_cx - int(26 * ss), line_y)], fill=BRASS + (170,), width=2 * ss)
+    d.line([(line_cx + int(26 * ss), line_y), (line_cx + line_w, line_y)], fill=BRASS + (170,), width=2 * ss)
+    draw_sun(d, line_cx, line_y, int(15 * ss), rays=12)
 
-    # Text shadow
-    draw.text((text_x + 3, text_y + 3), title, fill=(0, 0, 0, 120), font=title_font)
-    # Main text
-    draw.text((text_x, text_y), title, fill=CARD_WHITE, font=title_font)
-
-    # Subtitle
-    sub_x = (width - sub_w) // 2 + 40
-    sub_y = text_y + title_h + 20
-    draw.text((sub_x + 2, sub_y + 2), subtitle, fill=(0, 0, 0, 100), font=sub_font)
-    draw.text((sub_x, sub_y), subtitle, fill=(200, 230, 210), font=sub_font)
-
-    # Decorative line under subtitle
-    line_w = 300
-    line_x = (width + 80) // 2 - line_w // 2
-    line_y = sub_y + 50
-    draw.line([(line_x, line_y), (line_x + line_w, line_y)], fill=(255, 255, 255, 60), width=2)
-
-    # Bottom tagline
-    try:
-        tag_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 22)
-    except (OSError, IOError):
-        tag_font = ImageFont.load_default()
-
-    tagline = "Draw 1  \u2022  Draw 3  \u2022  Kostenlos  \u2022  Ohne Anmeldung"
-    tag_bbox = draw.textbbox((0, 0), tagline, font=tag_font)
-    tag_w = tag_bbox[2] - tag_bbox[0]
-    draw.text(
-        ((width - tag_w) // 2 + 40, height - 70),
+    gb = d.textbbox((0, 0), tagline, font=tag_font)
+    gw = gb[2] - gb[0]
+    d.text(
+        ((w - gw) // 2 + int(30 * ss), h - int(64 * ss)),
         tagline,
-        fill=(180, 210, 190),
+        fill=BRASS_CORE + (215,),
         font=tag_font,
     )
 
-    path = os.path.join(APP, filename)
-    img.save(path, "PNG", optimize=True)
+    out = img.convert("RGB").resize((width, height), Image.LANCZOS)
+    out.save(os.path.join(APP, filename), "PNG", optimize=True)
     print(f"  {filename} ({width}x{height})")
 
 

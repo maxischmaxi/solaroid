@@ -12,10 +12,17 @@ import { dealKlondike } from "@/lib/game/deal";
 
 describe("migrateAndValidate — settings", () => {
   it("returns the validated object for a current-version payload", () => {
+    const raw = { ...defaultSettings, drawMode: 3 };
+    const out = migrateAndValidate(1, raw, settingsConfig);
+    expect(out).not.toBeNull();
+    expect(out!.drawMode).toBe(3);
+  });
+
+  it("drops retired fields (old saves carried a theme setting)", () => {
     const raw = { ...defaultSettings, theme: "neon" };
     const out = migrateAndValidate(1, raw, settingsConfig);
     expect(out).not.toBeNull();
-    expect(out!.theme).toBe("neon");
+    expect(out).not.toHaveProperty("theme");
   });
 
   it("rejects a future version (the caller falls back to defaults)", () => {
@@ -34,7 +41,6 @@ describe("migrateAndValidate — settings", () => {
       drawMode: 3,
       autoCompleteEnabled: true,
       dealType: "random",
-      theme: "classic",
       // no redealLimit
     };
     const out = migrateAndValidate(1, legacy, settingsConfig);

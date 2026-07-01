@@ -10,17 +10,21 @@ import { renderScene } from "@/lib/canvas/renderer";
 import type { DragFromOverrides } from "@/lib/canvas/scheduler";
 import { createScheduler } from "@/lib/canvas/scheduler";
 import {
+  buildSprites,
   ensureSpriteCache,
   spriteLogicalSize,
   spriteMargin,
   type SpriteCache,
 } from "@/lib/canvas/sprites";
+import {
+  displayFont,
+  refreshCanvasFonts,
+  uiFont,
+} from "@/lib/canvas/palette";
 import type { WinFinaleParticle } from "@/lib/canvas/winFinale";
 import type { DragState, HintScene, Layout, Rect } from "@/lib/canvas/types";
 import { WinFinale } from "@/lib/canvas/winFinale";
-import type { CardId, GameState, PileId, ThemeId } from "@/lib/game/types";
-import { setActiveTheme } from "@/lib/theme/activeTheme";
-import { THEMES } from "@/lib/theme/themes";
+import type { CardId, GameState, PileId } from "@/lib/game/types";
 import type { ActiveHint } from "@/lib/store/gameStore";
 import { CanvasBoardA11y } from "./CanvasBoardA11y";
 
@@ -63,9 +67,6 @@ export function CanvasBoard() {
 
     let layout: Layout | null = null;
     let sprites: SpriteCache | null = null;
-    // Keyed by themeId so toggling between themes doesn't rebuild 56 sprites
-    // on every switch. Geometry changes (cardW, dpr) invalidate the whole map.
-    const spriteCache = new Map<ThemeId, SpriteCache>();
     let drag: DragState | null = null;
     let hovered: PileId | null = null;
     let loopRunning = false;
@@ -108,18 +109,9 @@ export function CanvasBoard() {
       canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const state = useGameStore.getState();
-      const game = state.game;
-      const themeId = state.settings.theme;
-      setActiveTheme(THEMES[themeId]);
+      const game = useGameStore.getState().game;
       layout = computeLayout(game, w, h, game.drawMode);
-      sprites = ensureSpriteCache(
-        spriteCache,
-        layout.cardW,
-        layout.cardH,
-        dpr,
-        themeId,
-      );
+      sprites = ensureSpriteCache(sprites, layout.cardW, layout.cardH, dpr);
       requestDraw();
     };
 
@@ -292,21 +284,27 @@ export function CanvasBoard() {
       }
     });
 
-    // ----- Theme changes -----
-    const unsubTheme = useGameStore.subscribe((s, prev) => {
-      if (s.settings.theme === prev.settings.theme) return;
-      setActiveTheme(THEMES[s.settings.theme]);
-      if (layout) {
-        sprites = ensureSpriteCache(
-          spriteCache,
-          layout.cardW,
-          layout.cardH,
-          dpr,
-          s.settings.theme,
-        );
-      }
-      requestDraw();
-    });
+    // ----- Webfont readiness -----
+    // The first sprites are painted with fallback system fonts because the
+    // self-hosted webfonts stream in after hydration. Once they're loaded,
+    // rebuild the sprite set a single time so indices and court letters pick
+    // up the real faces.
+    let fontRebuildCancelled = false;
+    refreshCanvasFonts();
+    if ("fonts" in document) {
+      Promise.all(
+        [`700 16px ${uiFont()}`, `600 16px ${displayFont()}`].map((spec) =>
+          document.fonts.load(spec),
+        ),
+      )
+        .catch(() => undefined)
+        .then(() => {
+          if (fontRebuildCancelled || !layout) return;
+          refreshCanvasFonts();
+          sprites = buildSprites(layout.cardW, layout.cardH, dpr);
+          requestDraw();
+        });
+    }
 
     // ----- Pointer events -----
     const detachInput = attachInput(canvas, {
@@ -456,11 +454,11 @@ export function CanvasBoard() {
     motionMq.addEventListener?.("change", onMotionChange);
 
     return () => {
+      fontRebuildCancelled = true;
       detachInput();
       unsubGame();
       unsubFinale();
       unsubHint();
-      unsubTheme();
       ro.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
       motionMq.removeEventListener?.("change", onMotionChange);

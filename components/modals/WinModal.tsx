@@ -33,6 +33,31 @@ function ScoreTile({ label, value }: { label: string; value: string | number }) 
   );
 }
 
+/** The brand's sun medallion, sized for the win moment. */
+function SunBadge() {
+  const rays = Array.from({ length: 12 }, (_, i) => {
+    const a = (i * Math.PI) / 6;
+    return (
+      <line
+        key={i}
+        x1={24 + Math.cos(a) * 12}
+        y1={24 + Math.sin(a) * 12}
+        x2={24 + Math.cos(a) * (i % 2 === 0 ? 19 : 16)}
+        y2={24 + Math.sin(a) * (i % 2 === 0 ? 19 : 16)}
+        stroke="currentColor"
+        strokeWidth={2.4}
+        strokeLinecap="round"
+      />
+    );
+  });
+  return (
+    <svg viewBox="0 0 48 48" className="h-10 w-10" aria-hidden="true">
+      <circle cx="24" cy="24" r="8" fill="currentColor" />
+      {rays}
+    </svg>
+  );
+}
+
 export function WinModal({ open, onClose }: Props) {
   const game = useGameStore((s) => s.game);
 
@@ -42,13 +67,17 @@ export function WinModal({ open, onClose }: Props) {
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (reduced) return;
+    // Brand confetti: brass, ivory, carmine, and midnight — not the default
+    // rainbow, so the win moment still looks like this app.
+    const colors = ["#ecc878", "#d9a94e", "#f6f1e3", "#b52237", "#24487c"];
     confetti({
       particleCount: 200,
       spread: 80,
       origin: { y: 0.6 },
+      colors,
     });
     const t = setTimeout(() => {
-      confetti({ particleCount: 120, spread: 120, origin: { y: 0.5 } });
+      confetti({ particleCount: 120, spread: 120, origin: { y: 0.5 }, colors });
     }, 400);
     return () => clearTimeout(t);
   }, [open]);
@@ -63,10 +92,10 @@ export function WinModal({ open, onClose }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Gewonnen!">
       <div className="flex flex-col items-center text-center">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400/15 text-4xl ring-1 ring-amber-500/25">
-          🎉
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brass/15 text-brass ring-1 ring-brass/30">
+          <SunBadge />
         </div>
-        <h3 className="text-xl font-semibold tracking-tight">
+        <h3 className="font-serif text-2xl font-semibold tracking-tight">
           Sauber abgeschlossen
         </h3>
         <p className="mt-2 max-w-xs text-sm leading-6 text-[var(--color-modal-subtext)]">
@@ -78,7 +107,7 @@ export function WinModal({ open, onClose }: Props) {
           <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-modal-subtext)]">
             Endscore
           </div>
-          <div className="mt-1 text-4xl font-semibold tracking-tight tabular-nums">
+          <div className="mt-1 font-serif text-4xl font-semibold tracking-tight tabular-nums">
             {totalScore.toLocaleString("de-DE")}
           </div>
         </div>

@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
       "Klondike Solitär kostenlos im Browser spielen. Draw 1 oder Draw 3.",
     start_url: "/",
     display: "standalone",
-    background_color: "#064d27",
-    theme_color: "#0b6b3a",
+    background_color: "#073723",
+    theme_color: "#0c4e31",
     orientation: "any",
     categories: ["games", "entertainment"],
     icons: [

@@ -86,7 +86,7 @@ export function Modal({
         data-state={state}
       >
         <div className="ui-modal-header flex shrink-0 items-center justify-between px-5 py-4">
-          <h2 id={titleId} className="text-base font-semibold tracking-tight">
+          <h2 id={titleId} className="ui-modal-title text-lg tracking-tight">
             {title}
           </h2>
           <button

@@ -98,8 +98,8 @@ function StreakBanner({ stats }: { stats: Stats }) {
     );
   }
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-orange-500/15 via-amber-400/10 to-transparent p-3 ring-1 ring-orange-500/30">
-      <FlameIcon className="w-7 h-7 text-orange-500 drop-shadow-sm" />
+    <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-brass/20 via-brass-bright/10 to-transparent p-3 ring-1 ring-brass/40">
+      <FlameIcon className="w-7 h-7 text-brass drop-shadow-sm" />
       <div className="flex-1">
         <div className="text-sm font-semibold">
           {stats.currentStreak} Sieg{stats.currentStreak === 1 ? "" : "e"} in
@@ -131,12 +131,12 @@ function LatestGamePill({ game }: { game: CompletedGame | undefined }) {
       className={[
         "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium",
         won
-          ? "bg-emerald-500/15 text-emerald-700 ring-1 ring-emerald-500/30"
-          : "bg-rose-500/10 text-rose-700 ring-1 ring-rose-500/25",
+          ? "bg-pine/10 text-pine ring-1 ring-pine/25"
+          : "bg-carmine/10 text-carmine ring-1 ring-carmine/25",
       ].join(" ")}
     >
       <span
-        className={`w-1.5 h-1.5 rounded-full ${won ? "bg-emerald-500" : "bg-rose-500"}`}
+        className={`w-1.5 h-1.5 rounded-full ${won ? "bg-pine" : "bg-carmine"}`}
       />
       {won ? "Sieg" : "Verloren"} · Draw {game.drawMode} ·{" "}
       {formatTime(game.durationMs)}
@@ -308,7 +308,7 @@ export function StatsModal({ open, onClose }: Props) {
             <button
               type="button"
               onClick={() => setConfirmReset(true)}
-              className="ui-control ui-control-quiet mt-3 h-9 px-3 py-2 text-xs text-rose-600"
+              className="ui-control ui-control-quiet mt-3 h-9 px-3 py-2 text-xs text-carmine"
             >
               Statistik zurücksetzen
             </button>

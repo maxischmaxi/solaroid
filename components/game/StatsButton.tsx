@@ -27,6 +27,19 @@ function StatsIcon() {
   );
 }
 
+function FlameIcon() {
+  return (
+    <svg
+      className="h-2.5 w-2.5"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M13.5 1c.4 3.5-2 5.4-3.5 7.6-1.5 2.2-3 4.4-3 7.4 0 4.4 3.6 8 8 8s8-3.6 8-8c0-3.5-2.6-5.6-4.4-8C16.8 5.6 15.6 3.6 13.5 1Zm-.6 14.5c.6-.7 1-1.5 1.1-2.2.7 1 1.6 1.7 1.6 3.2A2.5 2.5 0 1 1 11.6 18c0-.5.4-1.4 1.3-2.5Z" />
+    </svg>
+  );
+}
+
 /**
  * Stats opener with a small streak badge in the top-right corner. Reading
  * `currentStreak` and `gamesPlayed` lets us:
@@ -56,17 +69,18 @@ export function StatsButton({ onClick }: Props) {
       onClick={onClick}
       aria-label={title}
       title={title}
-      className="ui-control ui-control-secondary relative ml-1 h-9 min-w-9 rounded-md px-3 py-0 text-white sm:ml-2"
+      className="ui-control ui-control-secondary relative ml-1 h-9 min-w-9 px-3 py-0 sm:ml-2"
     >
       <StatsIcon />
       {showBadge && (
         <span
-          className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gradient-to-b from-orange-400 to-orange-600 px-1 text-[10px] font-bold leading-none text-white shadow-lg ring-2 ring-[var(--color-felt-dark)] tabular-nums"
+          className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center gap-px rounded-full bg-gradient-to-b from-brass-bright to-brass px-1 text-[10px] font-bold leading-none text-pine shadow-lg ring-2 ring-felt-dark tabular-nums"
           aria-hidden="true"
         >
           {/* Flame + count is more iconic than just a number; keep it terse so
              the badge stays compact on mobile. */}
-          🔥{currentStreak}
+          <FlameIcon />
+          {currentStreak}
         </span>
       )}
     </button>

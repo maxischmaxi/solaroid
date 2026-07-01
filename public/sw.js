@@ -11,7 +11,7 @@
 // The CACHE_VERSION is bumped on incompatible sw.js changes so activate()
 // can evict stale caches in one sweep.
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const STATIC_CACHE = `solaroid-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `solaroid-page-${CACHE_VERSION}`;
 const OFFLINE_URL = "/";

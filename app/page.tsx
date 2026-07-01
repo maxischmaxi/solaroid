@@ -284,7 +284,7 @@ export default function Home() {
       </div>
 
       <noscript>
-        <div style={{ padding: "2rem", textAlign: "center", color: "#f5f5f5" }}>
+        <div style={{ padding: "2rem", textAlign: "center", color: "#f6f1e4" }}>
           <h1>Solitär – Klondike Solitaire</h1>
           <p>
             Dieses Spiel benötigt JavaScript. Bitte aktiviere JavaScript in

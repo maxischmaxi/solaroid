@@ -1,172 +1,91 @@
 @import "tailwindcss";
 
+/* ----------------------------------------------------------------------
+   "Abendpartie" — a night-time card table under a warm lamp.
+   One identity, no theme switching. The canvas palette
+   (lib/canvas/palette.ts) mirrors these values; keep them in sync.
+   --------------------------------------------------------------------- */
+
 @theme inline {
-  --color-felt: #0b6b3a;
-  --color-felt-dark: #064d27;
-  --color-btn-primary: #047857;
-  --color-btn-primary-hover: #059669;
-  --color-btn-primary-active: #065f46;
-  --color-btn-primary-border: rgba(5, 150, 105, 0.5);
-  --color-btn-secondary: #3f3f46;
-  --color-btn-secondary-hover: #52525b;
-  --color-btn-secondary-active: #27272a;
-  --color-btn-hint: #d97706;
-  --color-btn-hint-hover: #f59e0b;
-  --color-btn-hint-active: #b45309;
-  --color-active: #34d399;
-  --color-dropdown-bg: #27272a;
-  --color-dropdown-border: #3f3f46;
-  --color-dropdown-hover: #3f3f46;
-  --color-dropdown-subtext: #a1a1aa;
-  --color-modal-bg: #f4f4f5;
-  --color-modal-text: #18181b;
-  --color-modal-border: #e4e4e7;
-  --color-modal-subtext: #71717a;
-  --color-modal-backdrop: rgba(0, 0, 0, 0.6);
-  --color-modal-close: #71717a;
-  --color-modal-close-hover: #18181b;
-  --color-btn-modal-secondary-bg: #e4e4e7;
-  --color-btn-modal-secondary-hover: #d4d4d8;
-  --color-btn-modal-secondary-text: #27272a;
+  /* `font-sans` / `font-serif` utilities. The raw --font-ui/--font-display
+     variables are injected on <html> by next/font (app/layout.tsx). */
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-display), ui-serif, Georgia, serif;
+
+  --color-felt: #0b4a2e;
+  --color-felt-dark: #073723;
+  --color-ivory: #f6f1e3;
+  --color-pine: #143726;
+  --color-brass: #d9a94e;
+  --color-brass-bright: #ecc878;
+  --color-carmine: #b52237;
 }
 
-/* ---- Classic (default — matches @theme values) ---- */
-html[data-theme="classic"],
 :root {
-  --color-felt: #0b6b3a;
-  --color-felt-dark: #064d27;
-  --foreground: #f5f5f5;
-}
+  color-scheme: dark;
 
-/* ---- Neon / Cyberpunk ---- */
-html[data-theme="neon"] {
-  --color-felt: #0d0d24;
-  --color-felt-dark: #0a0a1a;
-  --foreground: #e0e0ff;
-  --color-btn-primary: #7c3aed;
-  --color-btn-primary-hover: #8b5cf6;
-  --color-btn-primary-active: #6d28d9;
-  --color-btn-primary-border: rgba(139, 92, 246, 0.5);
-  --color-btn-secondary: #1e1b4b;
-  --color-btn-secondary-hover: #2e2a6e;
-  --color-btn-secondary-active: #161340;
-  --color-btn-hint: #ec4899;
-  --color-btn-hint-hover: #f472b6;
-  --color-btn-hint-active: #db2777;
-  --color-active: #00f0ff;
-  --color-dropdown-bg: #0f0f23;
-  --color-dropdown-border: #2d1b69;
-  --color-dropdown-hover: #1a1a3e;
-  --color-dropdown-subtext: #7c7caa;
-  --color-modal-bg: #1a1a2e;
-  --color-modal-text: #e0e0ff;
-  --color-modal-border: #2d1b69;
-  --color-modal-subtext: #9090cc;
-  --color-modal-backdrop: rgba(0, 0, 0, 0.75);
-  --color-modal-close: #9090cc;
-  --color-modal-close-hover: #e0e0ff;
-  --color-btn-modal-secondary-bg: #1e1b4b;
-  --color-btn-modal-secondary-hover: #2e2a6e;
-  --color-btn-modal-secondary-text: #e0e0ff;
-}
+  /* ---- Palette ---- */
+  --felt-high: #10603c;
+  --felt: #0b4a2e;
+  --felt-low: #073723;
+  --ink: #f6f1e4;
+  --ivory: #f6f1e3;
+  --ivory-bright: #fdfaf1;
+  --pine: #143726;
+  --brass: #d9a94e;
+  --brass-bright: #ecc878;
+  --carmine: #b3213b;
 
-/* ---- Vintage / Retro ---- */
-html[data-theme="vintage"] {
-  --color-felt: #4a3728;
-  --color-felt-dark: #3d2b1f;
-  --foreground: #faf5e8;
-  --color-btn-primary: #78350f;
-  --color-btn-primary-hover: #92400e;
-  --color-btn-primary-active: #613009;
-  --color-btn-primary-border: rgba(146, 64, 14, 0.5);
-  --color-btn-secondary: #44403c;
-  --color-btn-secondary-hover: #57534e;
-  --color-btn-secondary-active: #373330;
-  --color-btn-hint: #b45309;
-  --color-btn-hint-hover: #d97706;
-  --color-btn-hint-active: #92400e;
-  --color-active: #c9a227;
-  --color-dropdown-bg: #292524;
-  --color-dropdown-border: #44403c;
-  --color-dropdown-hover: #3a3530;
-  --color-dropdown-subtext: #a8a29e;
-  --color-modal-bg: #f5eed6;
-  --color-modal-text: #2c1810;
-  --color-modal-border: #d4c5a0;
-  --color-modal-subtext: #78716c;
-  --color-modal-backdrop: rgba(30, 18, 8, 0.65);
-  --color-modal-close: #78716c;
-  --color-modal-close-hover: #2c1810;
-  --color-btn-modal-secondary-bg: #d4c5a0;
-  --color-btn-modal-secondary-hover: #c4b590;
-  --color-btn-modal-secondary-text: #2c1810;
-}
+  --foreground: var(--ink);
 
-/* ---- Shared UI polish tokens ----------------------------------------- */
-:root,
-html[data-theme="classic"] {
+  /* ---- Motion ---- */
   --ui-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ui-felt-gradient:
-    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.16), transparent 32rem),
-    radial-gradient(circle at 84% 18%, rgba(52, 211, 153, 0.13), transparent 28rem),
-    linear-gradient(145deg, var(--color-felt) 0%, var(--color-felt-dark) 68%);
-  --ui-glass-bg: rgba(1, 35, 25, 0.42);
-  --ui-glass-border: rgba(255, 255, 255, 0.14);
-  --ui-glass-strong: rgba(2, 24, 18, 0.64);
-  --ui-menu-shadow: 0 24px 70px rgba(0, 0, 0, 0.42), 0 8px 22px rgba(0, 0, 0, 0.24);
-  --ui-panel-shadow: 0 28px 90px rgba(0, 0, 0, 0.34), 0 10px 28px rgba(15, 23, 42, 0.16);
-  --ui-button-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  --ui-button-ring: rgba(52, 211, 153, 0.38);
-  --ui-button-secondary-bg: rgba(255, 255, 255, 0.1);
-  --ui-button-secondary-hover: rgba(255, 255, 255, 0.16);
-  --ui-button-secondary-text: #ffffff;
-  --ui-button-outline-bg: rgba(255, 255, 255, 0.03);
-  --ui-button-outline-hover: rgba(255, 255, 255, 0.08);
-  --color-modal-bg: #fbfbf7;
-  --color-modal-text: #18181b;
-  --color-modal-border: rgba(24, 24, 27, 0.11);
-  --color-modal-subtext: #71717a;
-  --color-modal-backdrop: rgba(2, 8, 6, 0.68);
-  --color-btn-modal-secondary-bg: rgba(24, 24, 27, 0.07);
-  --color-btn-modal-secondary-hover: rgba(24, 24, 27, 0.11);
-}
 
-html[data-theme="neon"] {
+  /* ---- Felt surface (body background, seamless under header + board) ---- */
   --ui-felt-gradient:
-    radial-gradient(circle at 22% 0%, rgba(124, 58, 237, 0.36), transparent 30rem),
-    radial-gradient(circle at 82% 20%, rgba(0, 240, 255, 0.16), transparent 28rem),
-    linear-gradient(145deg, var(--color-felt) 0%, var(--color-felt-dark) 72%);
-  --ui-glass-bg: rgba(9, 9, 30, 0.58);
-  --ui-glass-border: rgba(0, 240, 255, 0.18);
-  --ui-glass-strong: rgba(9, 9, 30, 0.78);
-  --ui-menu-shadow: 0 24px 80px rgba(124, 58, 237, 0.3), 0 8px 26px rgba(0, 0, 0, 0.42);
-  --ui-panel-shadow: 0 28px 90px rgba(124, 58, 237, 0.26), 0 10px 32px rgba(0, 0, 0, 0.42);
-  --ui-button-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
-  --ui-button-ring: rgba(0, 240, 255, 0.35);
-  --ui-button-secondary-bg: rgba(224, 224, 255, 0.09);
-  --ui-button-secondary-hover: rgba(224, 224, 255, 0.14);
-  --ui-button-secondary-text: #e0e0ff;
-  --ui-button-outline-bg: rgba(224, 224, 255, 0.035);
-  --ui-button-outline-hover: rgba(224, 224, 255, 0.08);
-}
+    radial-gradient(120% 85% at 50% -12%, rgba(255, 213, 130, 0.16), transparent 62%),
+    radial-gradient(150% 130% at 50% 40%, transparent 42%, rgba(1, 14, 8, 0.55) 100%),
+    repeating-linear-gradient(45deg, rgba(246, 241, 228, 0.013) 0px, rgba(246, 241, 228, 0.013) 2px, transparent 2px, transparent 7px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.02) 0px, rgba(0, 0, 0, 0.02) 2px, transparent 2px, transparent 7px),
+    linear-gradient(180deg, var(--felt-high) 0%, var(--felt) 52%, var(--felt-low) 100%);
 
-html[data-theme="vintage"] {
-  --ui-felt-gradient:
-    radial-gradient(circle at 18% 0%, rgba(250, 245, 232, 0.14), transparent 30rem),
-    radial-gradient(circle at 82% 20%, rgba(201, 162, 39, 0.16), transparent 26rem),
-    linear-gradient(145deg, var(--color-felt) 0%, var(--color-felt-dark) 72%);
-  --ui-glass-bg: rgba(42, 27, 17, 0.5);
-  --ui-glass-border: rgba(250, 245, 232, 0.16);
-  --ui-glass-strong: rgba(42, 27, 17, 0.72);
-  --ui-menu-shadow: 0 24px 70px rgba(30, 18, 8, 0.48), 0 8px 22px rgba(0, 0, 0, 0.24);
-  --ui-panel-shadow: 0 28px 90px rgba(30, 18, 8, 0.32), 0 10px 28px rgba(60, 40, 20, 0.18);
-  --ui-button-shadow: 0 1px 2px rgba(30, 18, 8, 0.18);
-  --ui-button-ring: rgba(201, 162, 39, 0.34);
-  --ui-button-secondary-bg: rgba(250, 245, 232, 0.1);
-  --ui-button-secondary-hover: rgba(250, 245, 232, 0.16);
-  --ui-button-secondary-text: #faf5e8;
-  --ui-button-outline-bg: rgba(250, 245, 232, 0.035);
-  --ui-button-outline-hover: rgba(250, 245, 232, 0.08);
+  /* ---- Glass chrome on felt ---- */
+  --ui-glass-bg: rgba(4, 28, 17, 0.44);
+  --ui-glass-border: rgba(246, 241, 228, 0.14);
+  --ui-glass-strong: rgba(3, 22, 13, 0.66);
+  --ui-menu-shadow: 0 24px 70px rgba(0, 8, 4, 0.5), 0 8px 22px rgba(0, 8, 4, 0.3);
+  --ui-panel-shadow: 0 28px 90px rgba(0, 10, 5, 0.45), 0 10px 28px rgba(0, 10, 5, 0.22);
+  --ui-button-shadow: 0 1px 2px rgba(0, 8, 4, 0.22);
+  --ui-button-ring: rgba(217, 169, 78, 0.42);
+  --ui-button-secondary-bg: rgba(246, 241, 228, 0.09);
+  --ui-button-secondary-hover: rgba(246, 241, 228, 0.15);
+  --ui-button-secondary-text: var(--ivory);
+  --ui-button-outline-bg: rgba(246, 241, 228, 0.03);
+  --ui-button-outline-hover: rgba(246, 241, 228, 0.08);
+
+  /* ---- Dropdown (green glass) ---- */
+  --color-dropdown-bg: #0a3421;
+  --color-dropdown-border: rgba(246, 241, 228, 0.15);
+  --color-dropdown-hover: rgba(246, 241, 228, 0.08);
+  --color-dropdown-text: var(--ivory);
+  --color-dropdown-subtext: rgba(246, 241, 228, 0.58);
+
+  /* ---- Modal (warm ivory paper) ---- */
+  --color-modal-bg: #faf7ee;
+  --color-modal-text: #211d14;
+  --color-modal-border: rgba(33, 29, 20, 0.12);
+  --color-modal-subtext: #77705e;
+  --color-modal-backdrop: rgba(2, 14, 8, 0.72);
+  --color-modal-close: #77705e;
+  --color-modal-close-hover: #211d14;
+  --color-btn-modal-secondary-bg: rgba(33, 29, 20, 0.07);
+  --color-btn-modal-secondary-hover: rgba(33, 29, 20, 0.11);
+  --color-btn-modal-secondary-text: #2b261b;
+
+  /* Chart accent inside modals — deep pine reads well on ivory. */
+  --color-btn-primary: #17573a;
+  --color-btn-primary-hover: #1d6a47;
+  --color-btn-primary-active: #124630;
 }
 
 html,
@@ -182,17 +101,11 @@ html {
 }
 
 body {
-  background: var(--ui-felt-gradient, var(--color-felt-dark));
+  background: var(--ui-felt-gradient);
+  background-color: var(--felt);
   color: var(--foreground);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
+  font-family: var(--font-ui), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   overscroll-behavior: none;
   /* Stop the browser from drawing the dark grey rectangle on every tap on
      iOS / Android Chrome — interactive elements style their own pressed state. */
@@ -202,6 +115,12 @@ body {
   -webkit-touch-callout: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
 }
 
 /* Re-enable text selection where it actually helps the user. */
@@ -230,12 +149,22 @@ canvas {
 }
 
 @layer components {
+  /* ---- Wordmark: the quiet signature in the header ---- */
+  .ui-wordmark {
+    font-family: var(--font-display), ui-serif, Georgia, serif;
+    font-style: italic;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ivory);
+  }
+
+  /* ---- Controls ------------------------------------------------------ */
   .ui-control {
-    --ui-control-bg: var(--color-btn-primary);
-    --ui-control-bg-hover: var(--color-btn-primary-hover);
-    --ui-control-bg-active: var(--color-btn-primary-active);
+    --ui-control-bg: var(--ui-button-secondary-bg);
+    --ui-control-bg-hover: var(--ui-button-secondary-hover);
+    --ui-control-bg-active: rgba(246, 241, 228, 0.2);
     --ui-control-border: transparent;
-    --ui-control-color: #fff;
+    --ui-control-color: var(--ui-button-secondary-text);
     display: inline-flex;
     height: 2.25rem;
     min-width: 2.25rem;
@@ -245,7 +174,7 @@ canvas {
     gap: 0.5rem;
     white-space: nowrap;
     border: 1px solid var(--ui-control-border);
-    border-radius: 0.375rem;
+    border-radius: 0.625rem;
     background: var(--ui-control-bg);
     color: var(--ui-control-color);
     box-shadow: var(--ui-button-shadow);
@@ -259,6 +188,7 @@ canvas {
       background-color 150ms ease,
       border-color 150ms ease,
       box-shadow 150ms ease,
+      transform 100ms ease,
       opacity 150ms ease;
   }
 
@@ -268,16 +198,17 @@ canvas {
 
   .ui-control:active:not(:disabled) {
     background: var(--ui-control-bg-active);
+    transform: translateY(0.5px);
   }
 
   .ui-control:focus-visible {
-    border-color: color-mix(in srgb, var(--color-active) 62%, white 12%);
+    border-color: color-mix(in srgb, var(--brass) 70%, white 10%);
     box-shadow: var(--ui-button-shadow), 0 0 0 3px var(--ui-button-ring);
   }
 
   .ui-control:disabled {
     pointer-events: none;
-    opacity: 0.5;
+    opacity: 0.45;
   }
 
   .ui-control svg {
@@ -285,36 +216,47 @@ canvas {
     flex-shrink: 0;
   }
 
+  /* Primary reads as a playing card: ivory stock, pine ink, a paper edge.
+     Inside modals (ivory on ivory) the same class flips to solid pine —
+     see the .ui-modal-panel override below. */
   .ui-control-primary {
-    --ui-control-bg: var(--color-btn-primary);
-    --ui-control-bg-hover: var(--color-btn-primary-hover);
-    --ui-control-bg-active: var(--color-btn-primary-active);
-    --ui-control-border: transparent;
-    --ui-control-color: #fff;
+    --ui-control-bg: linear-gradient(180deg, var(--ivory-bright), #efe8d3);
+    --ui-control-bg-hover: linear-gradient(180deg, #ffffff, var(--ivory));
+    --ui-control-bg-active: linear-gradient(180deg, #f1ebda, #e7dfc6);
+    --ui-control-border: rgba(33, 29, 20, 0.18);
+    --ui-control-color: var(--pine);
+    font-weight: 600;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 1px 2px rgba(0, 8, 4, 0.3),
+      0 2px 6px rgba(0, 8, 4, 0.18);
   }
 
   .ui-control-secondary {
     --ui-control-bg: var(--ui-button-secondary-bg);
     --ui-control-bg-hover: var(--ui-button-secondary-hover);
-    --ui-control-bg-active: color-mix(in srgb, var(--ui-button-secondary-hover) 72%, black 10%);
-    --ui-control-border: transparent;
+    --ui-control-bg-active: rgba(246, 241, 228, 0.2);
+    --ui-control-border: rgba(246, 241, 228, 0.12);
     --ui-control-color: var(--ui-button-secondary-text);
   }
 
+  /* Hint: same quiet glass as secondary, but the brass icon marks it. */
   .ui-control-hint {
-    --ui-control-bg: #d97706;
-    --ui-control-bg-hover: #f59e0b;
-    --ui-control-bg-active: #b45309;
-    --ui-control-border: transparent;
-    --ui-control-color: #fff7ed;
+    --ui-control-bg: var(--ui-button-secondary-bg);
+    --ui-control-bg-hover: var(--ui-button-secondary-hover);
+    --ui-control-bg-active: rgba(246, 241, 228, 0.2);
+    --ui-control-border: rgba(246, 241, 228, 0.12);
+    --ui-control-color: var(--brass-bright);
   }
 
+  /* Auto-complete: the one loud button — brass, only shown when winning. */
   .ui-control-auto {
-    --ui-control-bg: #059669;
-    --ui-control-bg-hover: #10b981;
-    --ui-control-bg-active: #047857;
-    --ui-control-border: transparent;
-    --ui-control-color: #ecfdf5;
+    --ui-control-bg: linear-gradient(180deg, var(--brass-bright), var(--brass));
+    --ui-control-bg-hover: linear-gradient(180deg, #f3d68d, #e0b25c);
+    --ui-control-bg-active: linear-gradient(180deg, #e2bd6b, #c99a41);
+    --ui-control-border: rgba(58, 44, 16, 0.35);
+    --ui-control-color: #3a2c10;
+    font-weight: 600;
   }
 
   .ui-control-modal-secondary {
@@ -326,9 +268,9 @@ canvas {
   }
 
   .ui-control-danger {
-    --ui-control-bg: #e11d48;
-    --ui-control-bg-hover: #be123c;
-    --ui-control-bg-active: #9f1239;
+    --ui-control-bg: var(--carmine);
+    --ui-control-bg-hover: #c22641;
+    --ui-control-bg-active: #9c1c33;
     --ui-control-border: transparent;
     --ui-control-color: #fff;
   }
@@ -363,32 +305,38 @@ canvas {
     padding-left: 0.75rem;
   }
 
+  /* ---- Glass panel (pause overlay etc.) ------------------------------ */
   .ui-toolbar {
     border: 1px solid var(--ui-glass-border);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05)), var(--ui-glass-bg);
-    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.16);
-    backdrop-filter: blur(18px) saturate(1.25);
+    background:
+      linear-gradient(180deg, rgba(246, 241, 228, 0.1), rgba(246, 241, 228, 0.03)),
+      var(--ui-glass-bg);
+    box-shadow: 0 18px 44px rgba(0, 8, 4, 0.3), inset 0 1px 0 rgba(246, 241, 228, 0.14);
+    backdrop-filter: blur(18px) saturate(1.2);
   }
 
+  /* ---- Metric pill (time / score / moves) ----------------------------- */
   .ui-metric {
     display: inline-flex;
     min-height: 2.25rem;
     align-items: center;
     gap: 0.4rem;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(246, 241, 228, 0.12);
     border-radius: 999px;
-    background: rgba(0, 0, 0, 0.16);
-    padding: 0.35rem 0.65rem;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.92);
+    background: rgba(0, 12, 6, 0.22);
+    padding: 0.35rem 0.7rem;
+    box-shadow: inset 0 1px 0 rgba(246, 241, 228, 0.07);
+    color: rgba(246, 241, 228, 0.94);
+    font-variant-numeric: tabular-nums;
   }
 
+  /* ---- Popover menu (green glass) ------------------------------------ */
   .ui-menu-panel {
-    border: 1px solid color-mix(in srgb, var(--color-dropdown-border) 72%, white 18%);
+    border: 1px solid var(--color-dropdown-border);
     border-radius: 1.25rem;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
-      color-mix(in srgb, var(--color-dropdown-bg) 92%, black 8%);
+      linear-gradient(180deg, rgba(246, 241, 228, 0.07), transparent 42%),
+      color-mix(in srgb, var(--color-dropdown-bg) 94%, black 6%);
     box-shadow: var(--ui-menu-shadow);
     backdrop-filter: blur(22px) saturate(1.2);
     animation: ui-popover-in 180ms var(--ui-ease) both;
@@ -397,8 +345,9 @@ canvas {
 
   .ui-choice {
     border: 1px solid var(--color-dropdown-border);
-    border-radius: 0.375rem;
+    border-radius: 0.625rem;
     background: var(--ui-button-outline-bg);
+    color: var(--color-dropdown-text);
     box-shadow: var(--ui-button-shadow);
     outline: none;
     transition:
@@ -409,20 +358,20 @@ canvas {
   }
 
   .ui-choice:hover {
-    border-color: color-mix(in srgb, var(--color-active) 28%, var(--color-dropdown-border));
+    border-color: color-mix(in srgb, var(--brass) 32%, var(--color-dropdown-border));
     background: var(--ui-button-outline-hover);
   }
 
   .ui-choice:focus-visible {
-    border-color: color-mix(in srgb, var(--color-active) 62%, white 12%);
+    border-color: color-mix(in srgb, var(--brass) 70%, white 10%);
     box-shadow: var(--ui-button-shadow), 0 0 0 3px var(--ui-button-ring);
   }
 
   .ui-choice[aria-checked="true"],
   .ui-choice-active {
-    border-color: color-mix(in srgb, var(--color-active) 70%, white 8%);
-    background: color-mix(in srgb, var(--color-active) 14%, transparent);
-    color: #fff;
+    border-color: color-mix(in srgb, var(--brass) 72%, white 6%);
+    background: color-mix(in srgb, var(--brass) 13%, transparent);
+    color: var(--ivory-bright);
   }
 
   .ui-section-label {
@@ -434,9 +383,10 @@ canvas {
     text-transform: uppercase;
   }
 
+  /* ---- Modal ---------------------------------------------------------- */
   .ui-modal-backdrop {
     background:
-      radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.1), transparent 26rem),
+      radial-gradient(circle at 50% 10%, rgba(255, 213, 130, 0.07), transparent 26rem),
       var(--color-modal-backdrop);
     backdrop-filter: blur(10px) saturate(1.1);
     animation: ui-backdrop-in 180ms var(--ui-ease) both;
@@ -447,6 +397,7 @@ canvas {
   }
 
   .ui-modal-panel {
+    color-scheme: light;
     border: 1px solid var(--color-modal-border);
     border-radius: 1.5rem;
     background:
@@ -464,6 +415,18 @@ canvas {
     animation: ui-modal-exit 160ms var(--ui-ease) both;
   }
 
+  /* On ivory paper the card-look primary would vanish — flip it to pine. */
+  .ui-modal-panel .ui-control-primary {
+    --ui-control-bg: linear-gradient(180deg, #1d6a47, #145236);
+    --ui-control-bg-hover: linear-gradient(180deg, #227952, #17583b);
+    --ui-control-bg-active: linear-gradient(180deg, #175a3c, #114530);
+    --ui-control-border: rgba(10, 40, 26, 0.5);
+    --ui-control-color: var(--ivory-bright);
+    box-shadow:
+      inset 0 1px 0 rgba(246, 241, 228, 0.16),
+      0 1px 2px rgba(0, 8, 4, 0.25);
+  }
+
   .ui-modal-header {
     border-bottom: 1px solid var(--color-modal-border);
     background: linear-gradient(
@@ -471,6 +434,12 @@ canvas {
       color-mix(in srgb, var(--color-modal-bg) 82%, white 18%),
       transparent
     );
+  }
+
+  .ui-modal-title {
+    font-family: var(--font-display), ui-serif, Georgia, serif;
+    font-weight: 600;
+    letter-spacing: 0.005em;
   }
 
   .ui-modal-close {
@@ -481,6 +450,7 @@ canvas {
     color: var(--color-modal-close-hover);
   }
 
+  /* ---- Stat tiles & chart cards --------------------------------------- */
   .ui-stat-tile {
     border: 1px solid var(--color-modal-border);
     border-radius: 1rem;
@@ -495,17 +465,18 @@ canvas {
   .ui-stat-tile-accent {
     border-color: color-mix(in srgb, var(--color-btn-primary) 32%, var(--color-modal-border));
     background:
-      linear-gradient(180deg, color-mix(in srgb, var(--color-btn-primary-hover) 18%, white 44%), transparent),
-      color-mix(in srgb, var(--color-btn-primary) 12%, var(--color-modal-bg));
+      linear-gradient(180deg, color-mix(in srgb, var(--color-btn-primary-hover) 14%, white 46%), transparent),
+      color-mix(in srgb, var(--color-btn-primary) 10%, var(--color-modal-bg));
   }
 
   .ui-chart-card {
     border: 1px solid var(--color-modal-border);
     border-radius: 1rem;
-    background: rgba(127, 127, 127, 0.06);
+    background: rgba(33, 29, 20, 0.04);
     padding: 0.75rem;
   }
 
+  /* ---- Keyframes ------------------------------------------------------- */
   @keyframes ui-popover-in {
     from {
       opacity: 0;

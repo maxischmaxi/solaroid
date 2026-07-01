@@ -1,19 +1,19 @@
-// Canvas paint routines for cards, mirroring the original DOM Card.tsx 1:1.
-// All drawing is into a CanvasRenderingContext2D with the origin at (0, 0)
-// of the card box; callers translate the context first.
+// Canvas paint routines for cards. All drawing is into a
+// CanvasRenderingContext2D with the origin at (0, 0) of the card box;
+// callers translate the context first.
 
 import { colorOf } from "@/lib/game/constants";
 import type { Rank, Suit } from "@/lib/game/types";
-import { getActiveTheme } from "@/lib/theme/activeTheme";
+import { CARD, displayFont, uiFont } from "./palette";
 import { PIP_LAYOUTS } from "./pipLayouts";
 
 /* ---------- Glyphs and labels ---------- */
 
 export const SUIT_GLYPH: Record<Suit, string> = {
-  spades: "\u2660",
-  hearts: "\u2665",
-  diamonds: "\u2666",
-  clubs: "\u2663",
+  spades: "♠",
+  hearts: "♥",
+  diamonds: "♦",
+  clubs: "♣",
 };
 
 /* ---------- Path-based suit drawing (font-independent, always filled) --- */
@@ -113,20 +113,6 @@ export const RANK_LABEL: Record<Rank, string> = {
   13: "K",
 };
 
-/* ---------- Color palette + fonts — read from active theme ---------- */
-
-function pal() {
-  return getActiveTheme().card;
-}
-
-function fontStack() {
-  return getActiveTheme().fonts.primary;
-}
-
-function serifStack() {
-  return getActiveTheme().fonts.serif;
-}
-
 /* ---------- Public API ---------- */
 
 /**
@@ -140,17 +126,16 @@ export function drawCardFront(
   suit: Suit,
   rank: Rank,
 ): void {
-  const p = pal();
-  const fg = colorOf(suit) === "red" ? p.red : p.black;
+  const fg = colorOf(suit) === "red" ? CARD.red : CARD.black;
   const r = w * 0.06;
 
-  // Drop shadow + base card
+  // Drop shadow + ivory card stock
   ctx.save();
-  ctx.shadowColor = p.cardShadow;
-  ctx.shadowBlur = w * 0.10;
+  ctx.shadowColor = CARD.cardShadow;
+  ctx.shadowBlur = w * 0.1;
   ctx.shadowOffsetY = w * 0.03;
   roundRect(ctx, 0, 0, w, h, r);
-  ctx.fillStyle = p.cardBg;
+  ctx.fillStyle = CARD.cardBg;
   ctx.fill();
   ctx.restore();
 
@@ -158,7 +143,7 @@ export function drawCardFront(
   ctx.save();
   roundRect(ctx, 0.5, 0.5, w - 1, h - 1, r);
   ctx.lineWidth = 1;
-  ctx.strokeStyle = p.cardRing;
+  ctx.strokeStyle = CARD.cardRing;
   ctx.stroke();
   ctx.restore();
 
@@ -183,76 +168,127 @@ export function drawCardFront(
   ctx.restore();
 }
 
-/** Paint a card back into ctx. */
+/**
+ * Paint a card back into ctx: midnight-blue stock, a fine double frame, and
+ * the brass sun medallion — the app's signature mark (Solaroid → Sol).
+ */
 export function drawCardBack(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
 ): void {
-  const p = pal();
   const r = w * 0.06;
 
   // Base gradient
   ctx.save();
-  ctx.shadowColor = p.cardShadow;
-  ctx.shadowBlur = w * 0.10;
+  ctx.shadowColor = CARD.cardShadow;
+  ctx.shadowBlur = w * 0.1;
   ctx.shadowOffsetY = w * 0.03;
   roundRect(ctx, 0, 0, w, h, r);
-  const grad = ctx.createLinearGradient(0, 0, w, h);
-  grad.addColorStop(0, p.backFrom);
-  grad.addColorStop(1, p.backTo);
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, CARD.backFrom);
+  grad.addColorStop(1, CARD.backTo);
   ctx.fillStyle = grad;
   ctx.fill();
   ctx.restore();
 
-  // Inner inset-1 area with diagonal stripes
-  const inset = Math.max(1, Math.round(w * 0.025));
-  const innerR = w * 0.045;
-  const innerX = inset;
-  const innerY = inset;
-  const innerW = w - inset * 2;
-  const innerH = h - inset * 2;
-
+  // Fine double frame
+  const frame1 = Math.max(1.5, w * 0.055);
+  const frame2 = Math.max(3, w * 0.1);
   ctx.save();
-  roundRect(ctx, innerX, innerY, innerW, innerH, innerR);
-  ctx.clip();
-
-  // Stripe A: 45°
-  drawDiagonalStripes(
-    ctx,
-    innerX,
-    innerY,
-    innerW,
-    innerH,
-    /* angle deg */ 45,
-    p.backStripeA,
-    /* stripeW */ Math.max(2, w * 0.045),
-    /* gapW */ Math.max(3, w * 0.067),
-  );
-  // Stripe B: -45°
-  drawDiagonalStripes(
-    ctx,
-    innerX,
-    innerY,
-    innerW,
-    innerH,
-    /* angle deg */ -45,
-    p.backStripeB,
-    Math.max(2, w * 0.045),
-    Math.max(3, w * 0.067),
-  );
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = CARD.backFrame;
+  roundRect(ctx, frame1, frame1, w - frame1 * 2, h - frame1 * 2, w * 0.045);
+  ctx.stroke();
+  ctx.strokeStyle = CARD.backFrameInner;
+  roundRect(ctx, frame2, frame2, w - frame2 * 2, h - frame2 * 2, w * 0.035);
+  ctx.stroke();
   ctx.restore();
 
-  // Inner ring
+  drawSunMedallion(ctx, w / 2, h / 2, w);
+
+  // Four quiet brass dots anchor the corners inside the inner frame.
+  const dotInset = frame2 + w * 0.075;
+  const dotR = Math.max(0.75, w * 0.016);
   ctx.save();
-  roundRect(ctx, innerX + 0.5, innerY + 0.5, innerW - 1, innerH - 1, innerR);
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = p.backInnerRing;
-  ctx.stroke();
+  ctx.fillStyle = CARD.sunRing;
+  for (const [dx, dy] of [
+    [dotInset, dotInset],
+    [w - dotInset, dotInset],
+    [dotInset, h - dotInset],
+    [w - dotInset, h - dotInset],
+  ]) {
+    ctx.beginPath();
+    ctx.arc(dx, dy, dotR, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 }
 
-/** Empty tableau pile slot (dashed outline). */
+/** The brass sun: 16 alternating rays around a warm-lit core disc. */
+function drawSunMedallion(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  w: number,
+): void {
+  const rayLong = w * 0.3;
+  const rayShort = w * 0.235;
+  const rayBase = w * 0.15;
+  const discR = w * 0.115;
+  const halo = w * 0.345;
+
+  ctx.save();
+
+  // Thin halo circle framing the rays.
+  ctx.beginPath();
+  ctx.arc(cx, cy, halo, 0, Math.PI * 2);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = CARD.sunRing;
+  ctx.stroke();
+
+  // Rays: slim wedges, long/short alternating for a hand-set rhythm.
+  for (let i = 0; i < 16; i++) {
+    const angle = (i * Math.PI * 2) / 16 - Math.PI / 2;
+    const len = i % 2 === 0 ? rayLong : rayShort;
+    const halfW = Math.PI / 52;
+    ctx.beginPath();
+    ctx.moveTo(
+      cx + Math.cos(angle - halfW) * rayBase,
+      cy + Math.sin(angle - halfW) * rayBase,
+    );
+    ctx.lineTo(cx + Math.cos(angle) * len, cy + Math.sin(angle) * len);
+    ctx.lineTo(
+      cx + Math.cos(angle + halfW) * rayBase,
+      cy + Math.sin(angle + halfW) * rayBase,
+    );
+    ctx.closePath();
+    ctx.fillStyle = CARD.sun;
+    ctx.globalAlpha = i % 2 === 0 ? 0.92 : 0.6;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Core disc with a warm center.
+  const core = ctx.createRadialGradient(cx, cy - discR * 0.35, 0, cx, cy, discR);
+  core.addColorStop(0, CARD.sunCore);
+  core.addColorStop(1, CARD.sun);
+  ctx.beginPath();
+  ctx.arc(cx, cy, discR, 0, Math.PI * 2);
+  ctx.fillStyle = core;
+  ctx.fill();
+
+  // Inner engraving ring gives the disc depth at larger sizes.
+  ctx.beginPath();
+  ctx.arc(cx, cy, discR * 0.6, 0, Math.PI * 2);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(21, 41, 77, 0.38)";
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/** Empty tableau pile slot. */
 export function drawEmptyTableau(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -261,7 +297,7 @@ export function drawEmptyTableau(
   drawEmptySlot(ctx, w, h);
 }
 
-/** Empty stock slot, optionally showing the recycle ↻ glyph. */
+/** Empty stock slot, optionally showing a drawn recycle arrow. */
 export function drawEmptyStock(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -270,17 +306,11 @@ export function drawEmptyStock(
 ): void {
   drawEmptySlot(ctx, w, h);
   if (showRecycle) {
-    ctx.save();
-    ctx.fillStyle = pal().emptyHintStock;
-    ctx.font = `${Math.round(w * 0.4)}px ${fontStack()}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("\u21BB", w / 2, h / 2);
-    ctx.restore();
+    drawRecycleArrow(ctx, w / 2, h / 2, w * 0.17);
   }
 }
 
-/** Empty foundation slot (dashed outline + ♢ glyph). */
+/** Empty foundation slot: a quiet serif "A" marks where the aces go. */
 export function drawEmptyFoundation(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -288,31 +318,75 @@ export function drawEmptyFoundation(
 ): void {
   drawEmptySlot(ctx, w, h);
   ctx.save();
-  ctx.fillStyle = pal().emptyHintFoundation;
-  ctx.font = `${Math.round(w * 0.4)}px ${fontStack()}`;
+  ctx.fillStyle = CARD.emptyGlyphSoft;
+  ctx.font = `500 ${Math.round(w * 0.38)}px ${displayFont()}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("\u2662", w / 2, h / 2);
+  ctx.fillText("A", w / 2, h / 2 + w * 0.02);
   ctx.restore();
 }
 
 /* ---------- Internals ---------- */
 
+/** A recess pressed into the felt: darkened fill, soft top shading, thin rim. */
 function drawEmptySlot(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
 ): void {
-  const p = pal();
   const r = w * 0.06;
   ctx.save();
   roundRect(ctx, 0, 0, w, h, r);
-  ctx.fillStyle = p.emptyBg;
+  ctx.fillStyle = CARD.emptyBg;
   ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.setLineDash([4, 3]);
-  ctx.strokeStyle = p.emptyDash;
+
+  // Inner shadow along the top edge sells the recess.
+  roundRect(ctx, 0, 0, w, h, r);
+  ctx.clip();
+  const shade = ctx.createLinearGradient(0, 0, 0, h * 0.28);
+  shade.addColorStop(0, "rgba(0, 8, 4, 0.2)");
+  shade.addColorStop(1, "rgba(0, 8, 4, 0)");
+  ctx.fillStyle = shade;
+  ctx.fillRect(0, 0, w, h * 0.28);
+  ctx.restore();
+
+  ctx.save();
+  roundRect(ctx, 0.75, 0.75, w - 1.5, h - 1.5, r);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = CARD.emptyRing;
   ctx.stroke();
+  ctx.restore();
+}
+
+/** Circular arrow drawn as a path — crisper than a font-dependent ↻ glyph. */
+function drawRecycleArrow(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+): void {
+  const start = -Math.PI * 0.35;
+  const end = Math.PI * 1.15;
+  ctx.save();
+  ctx.strokeStyle = CARD.emptyGlyph;
+  ctx.lineWidth = Math.max(1.5, radius * 0.22);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, start, end);
+  ctx.stroke();
+
+  // Arrow head at the arc's open end.
+  const tipAngle = start;
+  const tipX = cx + Math.cos(tipAngle) * radius;
+  const tipY = cy + Math.sin(tipAngle) * radius;
+  const head = radius * 0.55;
+  ctx.fillStyle = CARD.emptyGlyph;
+  ctx.beginPath();
+  ctx.moveTo(tipX + head * 0.62, tipY - head * 0.18);
+  ctx.lineTo(tipX - head * 0.38, tipY - head * 0.6);
+  ctx.lineTo(tipX - head * 0.28, tipY + head * 0.5);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 
@@ -341,7 +415,7 @@ function drawCornerIndex(
   ctx.textBaseline = "top";
 
   // Rank label (bold)
-  ctx.font = `bold ${fontPx}px ${fontStack()}`;
+  ctx.font = `700 ${fontPx}px ${uiFont()}`;
   ctx.fillText(RANK_LABEL[rank], padX, padY);
 
   // Suit glyph just below the rank, centered under the label
@@ -381,25 +455,24 @@ function drawFaceCard(
   ctx.save();
   roundRect(ctx, ix, iy, iw, ih, ir);
   const grad = ctx.createLinearGradient(ix, iy, ix + iw, iy + ih);
-  const p = pal();
-  grad.addColorStop(0, p.faceBoxFrom);
-  grad.addColorStop(1, p.faceBoxTo);
+  grad.addColorStop(0, CARD.faceBoxFrom);
+  grad.addColorStop(1, CARD.faceBoxTo);
   ctx.fillStyle = grad;
   ctx.fill();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = p.faceBoxRing;
+  ctx.strokeStyle = CARD.faceBoxRing;
   ctx.stroke();
   ctx.restore();
 
-  // Big serif label
+  // Big serif letter — the engraving-style display face carries the courts.
   ctx.save();
   ctx.fillStyle = fg;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const labelPx = Math.round(w * 0.42);
-  ctx.font = `600 ${labelPx}px ${serifStack()}`;
+  ctx.font = `600 ${labelPx}px ${displayFont()}`;
   // Slightly above the box center to make room for the suit glyph below.
-  ctx.fillText(RANK_LABEL[rank], w / 2, iy + ih * 0.40);
+  ctx.fillText(RANK_LABEL[rank], w / 2, iy + ih * 0.4);
 
   // Suit glyph below
   const glyphPx = Math.round(w * 0.24);
@@ -418,7 +491,7 @@ function drawPipGrid(
   const positions = PIP_LAYOUTS[rank];
   if (!positions) return;
 
-  // inset-[14%] inner area (the original Card.tsx wraps pips in this box)
+  // inset-[14%] inner area
   const ix = w * 0.14;
   const iy = h * 0.14;
   const iw = w - ix * 2;
@@ -442,37 +515,6 @@ function drawPipGrid(
     }
   }
 
-  ctx.restore();
-}
-
-/**
- * Draw repeating diagonal lines across a rectangle. The caller is expected to
- * have set up a clip region beforehand.
- */
-function drawDiagonalStripes(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  angleDeg: number,
-  color: string,
-  stripeW: number,
-  gapW: number,
-): void {
-  const period = stripeW + gapW;
-  const angle = (angleDeg * Math.PI) / 180;
-
-  ctx.save();
-  ctx.translate(x + w / 2, y + h / 2);
-  ctx.rotate(angle);
-  // After rotation we work in a coordinate system aligned with the stripes.
-  // The diagonal of the rect bounds how far we need to draw to cover the box.
-  const diag = Math.ceil(Math.sqrt(w * w + h * h)) + period;
-  ctx.fillStyle = color;
-  for (let s = -diag; s < diag; s += period) {
-    ctx.fillRect(-diag, s, diag * 2, stripeW);
-  }
   ctx.restore();
 }
 
